@@ -102,20 +102,22 @@ describe('Track C map and camera integration', () => {
   });
   it('keeps a level camera, official FOV, and snaps after teleport', () => {
     const rig = new CameraRig(getMap());
-    rig.update(120, 40, researchYaw(0), 0, false, 0.016, 16 / 9);
+    // Lagoon water of the compact map (column 22 and 26, row 11).
+    rig.update(68, 12, researchYaw(0), 0, false, 0.016, 16 / 9);
     expect(rig.camera.fov).toBe(CAMERA.fovDeg); expect(rig.camera.position.y).toBe(CAMERA.up);
-    expect(rig.camera.position.z).toBeCloseTo(40 + CAMERA.back);
+    expect(rig.camera.position.z).toBeCloseTo(12 + CAMERA.back);
     expect(Math.abs(rig.camera.rotation.x)).toBeLessThan(1e-7);
-    rig.update(156, 40, researchYaw(0), 0, false, 0.016, 1);
-    expect(rig.camera.position.x).toBeCloseTo(156);
-    expect(rig.camera.position.z).toBeCloseTo(40 + CAMERA.back);
+    rig.update(100, 12, researchYaw(0), 0, false, 0.016, 1);
+    expect(rig.camera.position.x).toBeCloseTo(100);
+    expect(rig.camera.position.z).toBeCloseTo(12 + CAMERA.back);
     expect(rig.camera.aspect).toBe(1);
   });
   it('stops camera motion before a map wall', () => {
     const map = getMap();
-    const safe = clampCamera(map, 188, 40, 210, 40);
+    // From the lagoon toward the east border wall (x >= 104).
+    const safe = clampCamera(map, 92, 12, 114, 12);
     expect(map.isWaterAt(safe.x, safe.z)).toBe(true);
-    expect(safe.x).toBeLessThan(196);
+    expect(safe.x).toBeLessThan(104);
   });
 });
 

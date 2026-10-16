@@ -20,10 +20,10 @@ export const TEAM_COLOURS = [
 
 export const MATCH = {
   /** Default crew size the host picks in the lobby (3 or 2). */
-  teamSizeDefault: 3 as 2 | 3,
+  teamSizeDefault: 2 as 2 | 3,
   /** Most viewports a projector can show readably. */
   maxTeams: 6,
-  maxPlayers: 18,
+  maxPlayers: 12,
   /** Countdown before the battle; Pilots and Gunners calibrate here. */
   countdownSec: 10,
   /** Fixed battle length. */
@@ -44,7 +44,7 @@ export const RESPAWN = {
   /** Bubble after respawn; ends early when the Gunner fires a lethal weapon. playtest */
   protectionSec: 3,
   /** Only docks at least this far from every enemy boat are candidates. playtest */
-  minDistanceFromEnemy: 80,
+  minDistanceFromEnemy: 50,
 } as const;
 
 export const SIM = {
@@ -176,10 +176,18 @@ export interface WeaponDef {
 
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
   watercannon: { id: 'watercannon', label: 'Water Cannon', tier: 'mvp', ammo: Infinity, fireInterval: 0, autoFire: true, lethal: false, weight: 0 },
-  cannon: { id: 'cannon', label: 'Cannon', tier: 'mvp', ammo: 5, fireInterval: 0.45, autoFire: true, lethal: true, weight: 6 },
+  // The Gunner's default: always there, unlimited, one shot a second (crates no longer hand it out).
+  cannon: { id: 'cannon', label: 'Cannon', tier: 'mvp', ammo: Infinity, fireInterval: 1, autoFire: true, lethal: true, weight: 0 },
   torpedo: { id: 'torpedo', label: 'Torpedo', tier: 'mvp', ammo: 2, fireInterval: 0.8, autoFire: false, lethal: true, weight: 3 },
-  mortar: { id: 'mortar', label: 'Fireworks Mortar', tier: 'should', ammo: 3, fireInterval: 0.9, autoFire: false, lethal: true, weight: 3 },
+  mortar: { id: 'mortar', label: 'Fireworks Mortar', tier: 'should', ammo: 3, fireInterval: 0.9, autoFire: false, lethal: true, weight: 0 },
 };
+
+/**
+ * What the Gunner holds with an empty slot, and gets back when a pickup runs out. Simplified
+ * game (2026-10-16): the Cannon, unlimited; red crates hand out Torpedoes. The Water Cannon,
+ * the Mortar, powers, hull water and the Engineer stay in the code behind TIERS, switched off.
+ */
+export const DEFAULT_WEAPON: WeaponId = 'cannon';
 
 export const WATER_CANNON = {
   /** Stream reach and half-angle of the cone. */
@@ -250,7 +258,7 @@ export const CRATES = {
   /** Drive within this distance of a crate to collect it. */
   pickupRadius: 3.2,
   /** Share of crate points that are red (weapon) versus blue (power). */
-  weaponShare: 0.5,
+  weaponShare: 1, // every crate is a weapon crate: powers are off
   /** Final-minute frenzy respawn speed-up (Stretch). */
   frenzyRespawnMultiplier: 2,
 } as const;
@@ -281,12 +289,13 @@ export const KEYBOARD = {
 
 /** Feature tiers. Flip to false to cut a feature without touching code. */
 export const TIERS = {
-  engineer: true, // Should: Engineer role and teams of 3
-  mortar: true, // Should
-  boost: true, // Should: Boost and ram kills
+  engineer: false, // Should: Engineer role and teams of 3 (off: crews of 2)
+  mortar: false, // Should
+  boost: false, // Should: Boost and ram kills
   killCam: true, // Should
   animatedCrew: true, // Should
-  bailing: true, // Should: shake to bail
+  bailing: false, // Should: shake to bail
+  powers: false, // Shield, Mine, Boost and the blue crates (off with the Engineer)
   killFeed: true, // Should
   audio: true, // Should
   smoke: false, // Stretch

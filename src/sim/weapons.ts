@@ -14,7 +14,7 @@
  *     with line of sight is pushed and takes water. Never lethal.
  * Projectiles are plain objects in state.projectiles; no Rapier bodies.
  */
-import { AIM, CANNON, MORTAR, TORPEDO, WATER_CANNON, WEAPONS, type WeaponId } from '@shared/config.ts';
+import { AIM, CANNON, DEFAULT_WEAPON, MORTAR, TORPEDO, WATER_CANNON, WEAPONS, type WeaponId } from '@shared/config.ts';
 import { DEG, clamp, turnToward } from '@shared/math.ts';
 import { dirFromYaw, yawFromDir } from '@shared/map.ts';
 import type { KillCause, ProjectileKind, ProjectileState } from '@shared/state.ts';
@@ -234,8 +234,8 @@ export class Weapons {
     const t = state.time;
     boat.ammo -= 1;
     if (boat.ammo <= 0) {
-      boat.weapon = 'watercannon';
-      boat.ammo = WEAPONS.watercannon.ammo;
+      boat.weapon = DEFAULT_WEAPON;
+      boat.ammo = WEAPONS[DEFAULT_WEAPON].ammo;
     }
     boat.lastFireAt = t;
     endProtection(this.ctx, team);

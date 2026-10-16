@@ -4,15 +4,15 @@
  * Rapier's wasm is decoded once by createSim.
  */
 import { describe, expect, it } from 'vitest';
-import { AIM, BOAT, MATCH, MINE, RESPAWN, SIM, WEAPONS } from '../shared/config.ts';
+import { AIM, BOAT, DEFAULT_WEAPON, MATCH, MINE, RESPAWN, SIM, TIERS, WEAPONS } from '../shared/config.ts';
 import type { InputMsg } from '../shared/protocol.ts';
 import type { SimEvent } from '../shared/state.ts';
 import { createSim, type GameSim } from '../src/sim/index.ts';
 import { LobbySync, buildHud, forwardEvents } from '../src/scene/phoneFeed.ts';
 import { CameraViews } from '../src/scene/views.ts';
 
-/** Lagoon water, far from walls: x 96..136, z -16..72 (cols 37..41, rows 17..27). */
-const OPEN = { x: 120, z: 40 };
+/** Lagoon water, clear of walls, piles and crates: column 22 of the compact map, z -60..64. */
+const OPEN = { x: 68, z: 12 };
 
 function steps(sim: GameSim, seconds: number, each?: () => void): void {
   for (let i = 0; i < Math.round(seconds / SIM.dt); i++) {
@@ -75,7 +75,7 @@ describe('B1 Rapier boats', () => {
     sim.debug.teleport(0, OPEN.x, 64, 0);
     steps(sim, 3, () => sim.applyInput('p0', pilot(0, true)));
     expect(boat(sim, 0).speed).toBeGreaterThan(BOAT.topSpeed * 0.8);
-    sim.debug.teleport(0, -92, 44, -Math.PI / 2); // long east-west canal (row 24), facing +x
+    sim.debug.teleport(0, -92, 28, -Math.PI / 2); // the wide east-west canal (row 14), facing +x
     steps(sim, 8, () => sim.applyInput('p0', pilot(0, true)));
     expect(boat(sim, 0).speed).toBeGreaterThan(BOAT.topSpeed * 0.95);
     expect(boat(sim, 0).speed).toBeLessThan(BOAT.topSpeed * 1.02);
@@ -92,7 +92,7 @@ describe('B1 Rapier boats', () => {
   it('bounces off a wall without sticking and stays on water', async () => {
     const sim = await duel();
     // Lagoon, facing east (+x) toward the right-hand border wall.
-    sim.debug.teleport(0, 160, OPEN.z, -Math.PI / 2);
+    sim.debug.teleport(0, 92, OPEN.z, -Math.PI / 2);
     const events: SimEvent[] = [];
     steps(sim, 5, () => {
       sim.applyInput('p0', pilot(0, true));
@@ -127,7 +127,7 @@ describe('B2 crates and inventory', () => {
     sim.step();
     expect(crate.active).toBe(false);
     const b = boat(sim, 0);
-    expect(b.weapon).not.toBe('watercannon');
+    expect(b.weapon).not.toBe(DEFAULT_WEAPON);
     expect(b.ammo).toBe(WEAPONS[b.weapon].ammo);
     expect(kinds(sim.drainEvents())).toContain('pickup');
     sim.debug.teleport(0, OPEN.x, OPEN.z, 0);
@@ -135,7 +135,8 @@ describe('B2 crates and inventory', () => {
     expect(crate.active).toBe(true);
   });
 
-  it('a blue crate fills a power slot, and stays in the water when both slots are full', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.powers)('a blue crate fills a power slot, and stays in the water when both slots are full', async () => {
     const sim = await duel();
     const i = sim.state.crates.findIndex((c) => c.category === 'power');
     const crate = sim.state.crates[i];
@@ -153,17 +154,17 @@ describe('B2 crates and inventory', () => {
     expect(b.powers[0]).not.toBeNull();
   });
 
-  it('the last shot brings the Water Cannon back', async () => {
+  it('the last shot brings the default weapon back', async () => {
     const sim = await duel();
     lineUp(sim, 60);
-    sim.debug.teleport(1, -150, -100, 0); // out of the way
+    sim.debug.teleport(1, -28, -68, 0); // out of the way (north canal)
     sim.debug.giveWeapon(0, 'torpedo');
     let fc = 0;
     for (let shot = 0; shot < WEAPONS.torpedo.ammo; shot++) {
       sim.applyInput('g0', gunner(++fc));
       steps(sim, WEAPONS.torpedo.fireInterval + 0.05);
     }
-    expect(boat(sim, 0).weapon).toBe('watercannon');
+    expect(boat(sim, 0).weapon).toBe(DEFAULT_WEAPON);
   });
 });
 
@@ -194,15 +195,15 @@ describe('B3 weapons and B4 kills', () => {
     const d = Math.hypot(victim.pose.x - shooter.pose.x, victim.pose.z - shooter.pose.z);
     expect(d).toBeGreaterThanOrEqual(RESPAWN.minDistanceFromEnemy);
     expect(victim.protectedUntil).toBeGreaterThan(sim.state.time);
-    expect(victim.weapon).toBe('watercannon');
+    expect(victim.weapon).toBe(DEFAULT_WEAPON);
     expect(victim.powers).toEqual([null, null]);
   });
 
   it('never hits a teammate or the shooter, and a wall stops the shot', async () => {
     const sim = await duel();
     // Shooter in the north canal facing a building to the north.
-    sim.debug.teleport(0, -32, -128, 0);
-    sim.debug.teleport(1, -150, 100, 0);
+    sim.debug.teleport(0, -44, -60, 0);
+    sim.debug.teleport(1, -92, 68, 0);
     sim.debug.giveWeapon(0, 'cannon');
     sim.applyInput('g0', gunner(1));
     const events: SimEvent[] = [];
@@ -228,7 +229,7 @@ describe('B3 weapons and B4 kills', () => {
   it('a Torpedo locks and homes onto a target off the aim line', async () => {
     const sim = await duel();
     sim.debug.teleport(0, OPEN.x, 64, 0);
-    sim.debug.teleport(1, OPEN.x + 10, 20, 0);
+    sim.debug.teleport(1, OPEN.x + 10, 28, 0);
     sim.step();
     sim.debug.giveWeapon(0, 'torpedo');
     sim.step();
@@ -261,7 +262,8 @@ describe('B3 weapons and B4 kills', () => {
 });
 
 describe('B5 Shield and Mine', () => {
-  it('a Shield absorbs one lethal hit, the next one sinks', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.powers)('a Shield absorbs one lethal hit, the next one sinks', async () => {
     const sim = await duel();
     lineUp(sim, 30);
     sim.debug.givePower(1, 'shield');
@@ -288,10 +290,11 @@ describe('B5 Shield and Mine', () => {
     expect(boat(sim, 0).powers[0]).toBeNull();
   });
 
-  it('a Mine arms after 1 s, ignores its owner and sinks the first enemy, credited to the dropper', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.powers)('a Mine arms after 1 s, ignores its owner and sinks the first enemy, credited to the dropper', async () => {
     const sim = await duel();
     sim.debug.teleport(0, OPEN.x, OPEN.z, 0);
-    sim.debug.teleport(1, -150, 100, 0);
+    sim.debug.teleport(1, -92, 68, 0);
     sim.step();
     sim.debug.givePower(0, 'mine');
     sim.applyInput('e0', engineer(1, 0));
@@ -310,7 +313,8 @@ describe('B5 Shield and Mine', () => {
 });
 
 describe('B10 boost, ram, bailing, sudden death', () => {
-  it('a boosted bow-on ram sinks the target; unboosted it just bounces', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.boost)('a boosted bow-on ram sinks the target; unboosted it just bounces', async () => {
     const sim = await duel();
     sim.debug.teleport(0, OPEN.x, OPEN.z + 22, 0);
     sim.debug.teleport(1, OPEN.x, OPEN.z, Math.PI / 2);
@@ -330,7 +334,8 @@ describe('B10 boost, ram, bailing, sudden death', () => {
     expect(sim.state.players['p0']?.ramKills).toBe(1);
   });
 
-  it('the Engineer bails by shaking; a team without one drains on its own', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.bailing)('the Engineer bails by shaking; a team without one drains on its own', async () => {
     const sim = await duel();
     boat(sim, 0).water = 60;
     boat(sim, 1).water = 60;
@@ -422,7 +427,8 @@ describe('audit fixes (Track B review)', () => {
     expect(boat(sim, 0).ammo).toBe(WEAPONS.cannon.ammo);
   });
 
-  it('the Gunner of a 2-member crew uses powers even in teams of 3', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.powers)('the Gunner of a 2-member crew uses powers even in teams of 3', async () => {
     const sim = await duel();
     expect(sim.state.teamSize).toBe(3);
     sim.debug.givePower(1, 'shield');
@@ -444,7 +450,8 @@ describe('audit fixes (Track B review)', () => {
     expect(boat(sim, 0).aimYaw).toBeCloseTo(0.1 * AIM.gainUnderCrosshair, 5);
   });
 
-  it('a boosted ram ends the rammer spawn protection', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.boost)('a boosted ram ends the rammer spawn protection', async () => {
     const sim = await duel();
     sim.debug.teleport(0, OPEN.x, OPEN.z + 22, 0);
     sim.debug.teleport(1, OPEN.x, OPEN.z, Math.PI / 2);
@@ -455,7 +462,8 @@ describe('audit fixes (Track B review)', () => {
     expect(boat(sim, 0).protectedUntil).toBeLessThanOrEqual(sim.state.time);
   });
 
-  it('rams count for best ram, not for top Gunner', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.boost)('rams count for best ram, not for top Gunner', async () => {
     const sim = await duel();
     sim.debug.teleport(0, OPEN.x, OPEN.z + 22, 0);
     sim.debug.teleport(1, OPEN.x, OPEN.z, Math.PI / 2);
@@ -485,7 +493,8 @@ describe('audit fixes (Track B review)', () => {
 });
 
 describe('audit fixes: roster with bots and keyboard crews', () => {
-  it('a phone never takes a seat on a bot boat, and the bot team survives a team size change', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.engineer)('a phone never takes a seat on a bot boat, and the bot team survives a team size change', async () => {
     const sim = await createSim();
     expect(sim.debug.addBotTeam()).toBe(0);
     for (let i = 0; i < 5; i++) sim.addPlayer(`ph${i}`, `Phone ${i}`);
@@ -510,7 +519,8 @@ describe('audit fixes: roster with bots and keyboard crews', () => {
 });
 
 describe('audit fixes: phone feed, lobby resend, kill-cam', () => {
-  it('Hud.hasPowers follows the crew aboard; onTarget stays on while the crosshair shows a lock', async () => {
+  // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
+  it.skipIf(!TIERS.powers)('Hud.hasPowers follows the crew aboard; onTarget stays on while the crosshair shows a lock', async () => {
     const sim = await createSim();
     sim.addPlayer('a', 'A');
     sim.addPlayer('b', 'B');

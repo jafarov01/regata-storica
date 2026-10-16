@@ -4,9 +4,9 @@ import { CELL, dirFromYaw, getMap, parseMap, reachableWaterCells, yawFromDir } f
 const map = getMap();
 
 describe('map grid', () => {
-  it('is about 50 x 38 cells of 8 m with a solid border', () => {
-    expect(map.width).toBe(50);
-    expect(map.height).toBe(38);
+  it('is 28 x 22 cells of 8 m (224 x 176 m) with a solid border', () => {
+    expect(map.width).toBe(28);
+    expect(map.height).toBe(22);
     expect(map.cell).toBe(CELL);
     for (let c = 0; c < map.width; c++) {
       expect(map.cellAt(c, 0)).toBe('B');
@@ -25,10 +25,10 @@ describe('map grid', () => {
     expect(reachableWaterCells(map, first.col, first.row)).toBe(map.waterCellCount);
   });
 
-  it('has the spec counts: 16 docks, 24 crates, 7 arch bridges + 1 covered, 1 tower', () => {
-    expect(map.docks).toHaveLength(16);
-    expect(map.crates).toHaveLength(24);
-    expect(map.bridges.filter((b) => !b.covered)).toHaveLength(7);
+  it('has the compact counts: 8 docks, 11 crates, 2 arch bridges + 1 covered, 1 tower', () => {
+    expect(map.docks).toHaveLength(8);
+    expect(map.crates).toHaveLength(11);
+    expect(map.bridges.filter((b) => !b.covered)).toHaveLength(2);
     expect(map.bridges.filter((b) => b.covered)).toHaveLength(1);
     expect(map.tower).not.toBeNull();
     expect(map.piles.length).toBeGreaterThan(0);
@@ -36,7 +36,7 @@ describe('map grid', () => {
 
   it('puts the densest crate cluster in the lagoon', () => {
     const inLagoon = map.crates.filter((c) => c.lagoon).length;
-    expect(inLagoon).toBeGreaterThanOrEqual(8);
+    expect(inLagoon).toBeGreaterThanOrEqual(4);
     expect(inLagoon).toBeLessThan(map.crates.length);
   });
 
@@ -83,9 +83,9 @@ describe('coordinates', () => {
     const centre = map.toWorld(map.width / 2, map.height / 2);
     expect(centre.x).toBeCloseTo(CELL / 2);
     expect(centre.z).toBeCloseTo(CELL / 2);
-    const p = map.toWorld(7, 3);
-    expect(map.toCell(p.x, p.z)).toEqual({ col: 7, row: 3 });
-    expect(map.toCell(p.x + 3.9, p.z - 3.9)).toEqual({ col: 7, row: 3 });
+    const p = map.toWorld(8, 3);
+    expect(map.toCell(p.x, p.z)).toEqual({ col: 8, row: 3 });
+    expect(map.toCell(p.x + 3.9, p.z - 3.9)).toEqual({ col: 8, row: 3 });
     expect(map.isWaterAt(p.x, p.z)).toBe(true);
   });
 

@@ -40,7 +40,7 @@ export const NET = {
   /** A `seq` that jumps backwards by more than this is a phone restart, not a late packet. */
   seqResetGap: 1000,
   /** Hard cap on players per room (6 teams x 3). The scene may lower it with a `gate`. */
-  maxPlayers: 18,
+  maxPlayers: 12,
   /** Longest name the relay accepts. Longer names are cut, not rejected. */
   nameMax: 16,
   /** A player slot (token -> pid) survives a disconnect for this long. */

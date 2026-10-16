@@ -10,7 +10,7 @@
  *     enemy (fallback: the farthest one), RESPAWN.protectionSec of protection.
  *   - Ranking: kills desc, deaths asc, earliest last kill, team index.
  */
-import { RESPAWN, WEAPONS } from '@shared/config.ts';
+import { DEFAULT_WEAPON, RESPAWN, WEAPONS } from '@shared/config.ts';
 import type { Dock } from '@shared/map.ts';
 import type { GameState, KillCause, Results } from '@shared/state.ts';
 import { isLive, wipeBoat, type SimCtx } from './ctx.ts';
@@ -82,8 +82,8 @@ export function sinkBoat(ctx: SimCtx, mem: MatchMemory, victim: number, by: Atta
   boat.killerTeam = by.team >= 0 ? by.team : null;
   boat.killCause = by.team >= 0 ? by.cause : null;
   // Death wipes the inventory now, so phones and the HUD show an empty boat while sunk.
-  boat.weapon = 'watercannon';
-  boat.ammo = WEAPONS.watercannon.ammo;
+  boat.weapon = DEFAULT_WEAPON;
+  boat.ammo = WEAPONS[DEFAULT_WEAPON].ammo;
   boat.powers = [null, null];
   boat.shieldUntil = 0;
   boat.boostUntil = 0;

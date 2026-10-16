@@ -2,7 +2,7 @@
  * src/sim/ctx.ts: what the sim modules share. One object per sim, passed to
  * the rules, items, weapons and bot modules so none of them owns the state.
  */
-import { TEAM_COLOURS, TIERS, WEAPONS } from '@shared/config.ts';
+import { DEFAULT_WEAPON, TEAM_COLOURS, TIERS, WEAPONS } from '@shared/config.ts';
 import type { ParsedMap } from '@shared/map.ts';
 import type { BoatState, GameState, SimEvent, TeamState } from '@shared/state.ts';
 import type { Hull } from './boat.ts';
@@ -34,8 +34,8 @@ export function newBoat(team: number): BoatState {
     aimYaw: 0,
     prevAimYaw: 0,
     water: 0,
-    weapon: 'watercannon',
-    ammo: WEAPONS.watercannon.ammo,
+    weapon: DEFAULT_WEAPON,
+    ammo: WEAPONS[DEFAULT_WEAPON].ammo,
     powers: [null, null],
     shieldUntil: 0,
     boostUntil: 0,
@@ -69,8 +69,8 @@ export function newTeam(index: number): TeamState {
 export function wipeBoat(boat: BoatState): void {
   boat.status = 'alive';
   boat.water = 0;
-  boat.weapon = 'watercannon';
-  boat.ammo = WEAPONS.watercannon.ammo;
+  boat.weapon = DEFAULT_WEAPON;
+  boat.ammo = WEAPONS[DEFAULT_WEAPON].ammo;
   boat.powers = [null, null];
   boat.shieldUntil = 0;
   boat.boostUntil = 0;
@@ -107,7 +107,7 @@ export function hasEngineer(state: GameState, team: number): boolean {
   return TIERS.engineer && (state.teams[team]?.members.length ?? 0) >= 3;
 }
 
-/** Without an Engineer the Gunner also holds the two power buttons. */
+/** Without an Engineer the Gunner also holds the two power buttons (when powers are on at all). */
 export function gunnerHasPowers(state: GameState, team: number): boolean {
-  return !hasEngineer(state, team);
+  return TIERS.powers && !hasEngineer(state, team);
 }

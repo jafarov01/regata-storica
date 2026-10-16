@@ -16,7 +16,7 @@
  * names carry data-* attributes so icons from public/assets/ui/ can replace them in CSS.
  */
 import type { CameraView, Layout } from '@shared/api.ts';
-import { MATCH, MINIMAP, POWERS, WEAPONS } from '@shared/config.ts';
+import { MATCH, MINIMAP, POWERS, TIERS, WEAPONS } from '@shared/config.ts';
 import type { ParsedMap } from '@shared/map.ts';
 import { wrapAngle } from '@shared/math.ts';
 import type { BoatState, GameState, KillCause, Role } from '@shared/state.ts';
@@ -142,7 +142,7 @@ export class SceneHud {
           <div class="lobby-foot">
             <p class="start"></p>
             <div class="host-buttons"></div>
-            <p class="keys"><kbd>Enter</kbd> start <kbd>K</kbd> keyboard crew <kbd>O</kbd> bot crew <kbd>T</kbd> team size <kbd>1</kbd>-<kbd>6</kbd> focus a crew <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> drive <kbd>&larr;</kbd><kbd>&rarr;</kbd> aim <kbd>Space</kbd> fire <kbd>R</kbd> recenter <kbd>Q</kbd><kbd>E</kbd> powers <kbd>B</kbd> bail <kbd>P</kbd> pause <kbd>Esc</kbd> lobby</p>
+            <p class="keys"><kbd>Enter</kbd> start <kbd>K</kbd> keyboard crew <kbd>O</kbd> bot crew <kbd>1</kbd>-<kbd>6</kbd> focus a crew <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> drive <kbd>&larr;</kbd><kbd>&rarr;</kbd> aim <kbd>Space</kbd> fire <kbd>R</kbd> recenter <kbd>P</kbd> pause <kbd>Esc</kbd> lobby</p>
           </div>
         </div>
       </section>
@@ -276,7 +276,7 @@ export class SceneHud {
     this.set(
       this.buttonsEl,
       `<button data-action="start" class="plate-btn"${info.canStart.ok ? '' : ' disabled'}>Start match</button>` +
-        `<button data-action="teamSize" class="ghost-btn">Teams of ${size === 3 ? '2' : '3'}</button>` +
+        (TIERS.engineer ? `<button data-action="teamSize" class="ghost-btn">Teams of ${size === 3 ? '2' : '3'}</button>` : '') +
         `<button data-action="addBot" class="ghost-btn"${full ? ' disabled' : ''}>Add bot crew</button>` +
         `<button data-action="addKeyboard" class="ghost-btn"${full ? ' disabled' : ''}>Add keyboard crew</button>`,
     );
@@ -335,7 +335,7 @@ export class SceneHud {
       <div class="tr"${side(true, false)}><span class="stat"><b>${t.kills}</b>sunk</span><span class="stat lost-stat"><b>${t.deaths}</b>lost</span></div>
       ${fighting ? `<div class="crosshair ${boat.crosshair}"><i></i></div>` : ''}
       ${fighting ? `<div class="bl"${side(false, true)}><span class="weapon-icon" data-weapon="${boat.weapon}">${weaponIcon(boat.weapon)}</span><span class="weapon-text"><span class="weapon">${esc(weapon.label)}</span>${ammoHtml(boat.ammo)}</span></div>` : ''}
-      ${fighting ? `<div class="br"${side(false, false)}><div class="powers">${powers}</div><div class="water${water >= 50 ? ' high' : ''}" title="Hull water">${dropIcon()}<span class="bar"><i style="width:${water}%"></i></span></div></div>` : ''}
+      ${fighting && (TIERS.powers || TIERS.bailing) ? `<div class="br"${side(false, false)}>${TIERS.powers ? `<div class="powers">${powers}</div>` : ''}${TIERS.bailing ? `<div class="water${water >= 50 ? ' high' : ''}" title="Hull water">${dropIcon()}<span class="bar"><i style="width:${water}%"></i></span></div>` : ''}</div>` : ''}
       ${fighting ? `<div class="bc"><div class="bow" style="transform:rotate(${(-bowDeg).toFixed(1)}deg)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 20 21l-8-4.5L4 21z"/></svg></div>${timers.join('')}</div>` : ''}
       ${flash}${overlay}
     </div>`;

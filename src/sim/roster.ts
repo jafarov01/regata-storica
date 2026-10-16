@@ -10,7 +10,7 @@
  */
 import type { AddPlayerOptions } from '@shared/api.ts';
 import { GONDOLIER_ID, isCharacterId } from '@shared/characters.ts';
-import { MATCH } from '@shared/config.ts';
+import { MATCH, TIERS } from '@shared/config.ts';
 import type { ParsedMap } from '@shared/map.ts';
 import type { Lobby, LobbyMember, PhoneControl } from '@shared/protocol.ts';
 import type { GameState, PlayerState, Role, SimEvent, TeamState } from '@shared/state.ts';
@@ -131,6 +131,8 @@ export class Roster {
 
   setTeamSize(size: 2 | 3): void {
     if (this.state.phase !== 'lobby' || size === this.state.teamSize) return;
+    // Crews of 3 need the Engineer.
+    if (size === 3 && !TIERS.engineer) return;
     this.state.teamSize = size;
     // Keyboard crews and bots keep their team index; everyone else is seated again in join order.
     const pinned = new Map<string, number>();

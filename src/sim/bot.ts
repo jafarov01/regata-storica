@@ -9,7 +9,7 @@
  * crate, armed bots hunt the nearest enemy. The gunner turns at a human-like
  * rate and fires when lined up. Powers are used when they make sense.
  */
-import { BOOST, SIM, WATER_CANNON, type WeaponId } from '@shared/config.ts';
+import { BOOST, DEFAULT_WEAPON, SIM, WATER_CANNON, type WeaponId } from '@shared/config.ts';
 import { DEG, clamp, makeRng, turnToward, wrapAngle } from '@shared/math.ts';
 import { yawFromDir, type ParsedMap } from '@shared/map.ts';
 import type { BoatState, GameState } from '@shared/state.ts';
@@ -104,7 +104,7 @@ export class Bots {
     // ---- goal: a weapon crate when unarmed, else the enemy, else any crate
     if (t >= brain.nextGoalAt || !brain.field) {
       brain.nextGoalAt = t + GOAL_REFRESH;
-      const goal = (me.weapon === 'watercannon' ? this.nearestCrate(state, me, 'weapon') : null) ?? (enemy ? enemy.pose : null) ?? this.nearestCrate(state, me, null);
+      const goal = (me.weapon === DEFAULT_WEAPON ? this.nearestCrate(state, me, 'weapon') : null) ?? (enemy ? enemy.pose : null) ?? this.nearestCrate(state, me, null);
       if (goal) this.setGoal(brain, goal.x, goal.z);
     }
 

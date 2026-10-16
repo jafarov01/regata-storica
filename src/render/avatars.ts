@@ -520,6 +520,7 @@ export class CrewAvatars {
   private readonly turret = new Group();
   private readonly oar: Mesh;
   private readonly bucket: Mesh;
+  private readonly engStool: Mesh;
   private prevSpeed = 0;
   private accel = 0;
 
@@ -532,15 +533,17 @@ export class CrewAvatars {
     stool.position.z = 0.62;
     this.turret.add(stool);
     this.root.add(this.turret);
-    const engStool = new Mesh(p.stool, mat);
-    engStool.position.copy(SEATS.engineer);
-    this.root.add(engStool);
+    this.engStool = new Mesh(p.stool, mat);
+    this.engStool.position.copy(SEATS.engineer);
+    this.root.add(this.engStool);
     this.oar = new Mesh(p.oar, mat);
     this.bucket = new Mesh(p.bucket, mat);
   }
 
   /** Rebuilds the people aboard when the crew or their picks change; cheap to call every frame. */
   setCrew(members: readonly CrewMember[]): void {
+    // Crews of 2 have no Engineer: no empty stool amidships.
+    this.engStool.visible = members.some((m) => m.role === 'engineer');
     const key = members.map((m) => `${m.role}:${m.character ?? ''}`).join('|');
     if (key === this.key) return;
     this.key = key;

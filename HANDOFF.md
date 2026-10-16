@@ -60,6 +60,12 @@ Dev console on the scene: `gr.sim.state`, `gr.sim.debug.giveWeapon(0, 'cannon')`
 
 To pull a file out of a transcript: `grep -o '"name":"Write","input":{"file_path":"[^"]*"' docs/research/_workflow/agent-<id>.jsonl | sort -u`; the contents are in the same JSON lines (`"content":`).
 
+## 4a. Simplified game (2026-10-16)
+
+- **Crews of 2:** Pilot and Gunner. The Engineer, powers (Shield, Mine, Boost), blue crates, hull water and bailing are off (`TIERS` in `shared/config.ts`); the code stays behind the flags and its tests skip while they are off.
+- **Weapons:** the Gunner always has the Cannon (unlimited, one shot a second, `DEFAULT_WEAPON`); every crate is red and gives a Torpedo (2 shots). The Water Cannon and the Mortar are off.
+- **Map:** 28 x 22 cells = 224 x 176 m (was 400 x 304): lagoon east, the covered bridge over the wide canal, the bell tower, side canals, 8 docks, 11 crates. Respawn docks must be 50 m from enemies (was 80). Up to 6 crews, 12 players.
+
 ## 4b. Characters (added 2026-10-16)
 
 After the QR scan a phone shows "Choose your player": the 14 people of the Via Falchi retreat (cartoon portraits from the event site, in `public/assets/players/`) plus the gondolier, open to anyone. One person per player; the pick is saved on the phone and sent again after any rejoin or big-screen reload. It travels as the `character` control message (`shared/protocol.ts`), lands in `PlayerState.character`, and shows in the big-screen roster, the phone crew list and in the boat: `src/render/avatars.ts` builds each person (look sheet in `shared/characters.ts` + the portrait as a face decal) and seats them by role, swaying with the boat.
