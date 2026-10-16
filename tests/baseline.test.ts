@@ -9,31 +9,31 @@ import { createSim } from '../src/sim/index.ts';
 import { computeLayout } from '../src/scene/layout.ts';
 import { buildHud } from '../src/scene/phoneFeed.ts';
 
-function sizes(n: number, teamSize: 2 | 3 = 3): number[] {
-  const sim = createSim();
+async function sizes(n: number, teamSize: 2 | 3 = 3): Promise<number[]> {
+  const sim = await createSim();
   sim.setTeamSize(teamSize);
   for (let i = 0; i < n; i++) sim.addPlayer(`p${i}`, `P${i}`);
   return sim.state.teams.map((t) => t.members.length);
 }
 
 describe('roster', () => {
-  it('balances teams in join order (7 in threes = 3+2+2, never 3+3+1)', () => {
-    expect(sizes(1)).toEqual([1]);
-    expect(sizes(4)).toEqual([2, 2]);
-    expect(sizes(7)).toEqual([3, 2, 2]);
-    expect(sizes(12)).toEqual([3, 3, 3, 3]);
-    expect(sizes(18)).toEqual([3, 3, 3, 3, 3, 3]);
-    expect(sizes(8, 2)).toEqual([2, 2, 2, 2]);
+  it('balances teams in join order (7 in threes = 3+2+2, never 3+3+1)', async () => {
+    expect(await sizes(1)).toEqual([1]);
+    expect(await sizes(4)).toEqual([2, 2]);
+    expect(await sizes(7)).toEqual([3, 2, 2]);
+    expect(await sizes(12)).toEqual([3, 3, 3, 3]);
+    expect(await sizes(18)).toEqual([3, 3, 3, 3, 3, 3]);
+    expect(await sizes(8, 2)).toEqual([2, 2, 2, 2]);
   });
 
-  it('puts players beyond 18 in the spectator queue', () => {
-    const sim = createSim();
+  it('puts players beyond 18 in the spectator queue', async () => {
+    const sim = await createSim();
     for (let i = 0; i < 20; i++) sim.addPlayer(`p${i}`, `P${i}`);
     expect(sim.state.spectators).toHaveLength(2);
   });
 
-  it('assigns roles by index and swaps roles inside a team', () => {
-    const sim = createSim();
+  it('assigns roles by index and swaps roles inside a team', async () => {
+    const sim = await createSim();
     sim.addPlayer('a', 'A');
     sim.addPlayer('b', 'B');
     expect(sim.state.players['a']?.role).toBe('pilot');
@@ -43,8 +43,8 @@ describe('roster', () => {
     expect(sim.state.players['a']?.role).toBe('gunner');
   });
 
-  it('keeps a bot team when a phone joins', () => {
-    const sim = createSim();
+  it('keeps a bot team when a phone joins', async () => {
+    const sim = await createSim();
     expect(sim.debug.addBotTeam()).toBe(0);
     sim.addPlayer('phone', 'Phone');
     expect(sim.state.teams.length).toBeGreaterThanOrEqual(1);
@@ -53,8 +53,8 @@ describe('roster', () => {
 });
 
 describe('match flow', () => {
-  it('runs lobby -> countdown -> battle -> results -> lobby on sim time', () => {
-    const sim = createSim();
+  it('runs lobby -> countdown -> battle -> results -> lobby on sim time', async () => {
+    const sim = await createSim();
     sim.addPlayer('a', 'A');
     expect(sim.start()).toBe(true);
     expect(sim.state.phase).toBe('countdown');
@@ -70,8 +70,8 @@ describe('match flow', () => {
     expect(sim.state.phase).toBe('lobby');
   });
 
-  it('moves the boat forward on gas and keeps it on water', () => {
-    const sim = createSim();
+  it('moves the boat forward on gas and keeps it on water', async () => {
+    const sim = await createSim();
     sim.addPlayer('a', 'A');
     sim.start();
     for (let i = 0; i < Math.round((MATCH.countdownSec + 0.1) / SIM.dt); i++) sim.step(SIM.dt);
@@ -88,7 +88,7 @@ describe('match flow', () => {
 });
 
 describe('layout', () => {
-  it('splits 1080p into the spec grids without overlap', () => {
+  it('splits 1080p into the spec grids without overlap', async () => {
     expect(computeLayout(2, 1920, 1080).cells).toEqual([
       { x: 0, y: 0, w: 960, h: 1080 },
       { x: 960, y: 0, w: 960, h: 1080 },
@@ -107,8 +107,8 @@ describe('layout', () => {
 });
 
 describe('phone HUD feed', () => {
-  it('reports team, role and phase for phones and skips virtual players', () => {
-    const sim = createSim();
+  it('reports team, role and phase for phones and skips virtual players', async () => {
+    const sim = await createSim();
     sim.addPlayer('a', 'A');
     sim.addPlayer('kb', 'Keys', { virtual: true, team: 0, role: 'gunner' });
     const hud = buildHud(sim.state, 'a', false);
@@ -117,22 +117,31 @@ describe('phone HUD feed', () => {
   });
 });
 
-describe('placeholder water cannon', () => {
-  it('fires blobs along the aim while FIRE is held, and a tap fires at least once', () => {
-    const sim = createSim();
-    sim.addPlayer('a', 'A');
-    sim.addPlayer('b', 'B');
+describe('water cannon', () => {
+  it('streams while FIRE is held: fired cues, push and hull water on an enemy in the cone, never a kill', async () => {
+    const sim = await createSim();
+    sim.addPlayer('a', 'A', { virtual: true, team: 0, role: 'pilot' });
+    sim.addPlayer('b', 'B', { virtual: true, team: 0, role: 'gunner' });
+    sim.addPlayer('c', 'C', { virtual: true, team: 1, role: 'pilot' });
     sim.start();
     for (let i = 0; i < Math.round((MATCH.countdownSec + 0.1) / SIM.dt); i++) sim.step(SIM.dt);
     const boat = sim.state.boats[0];
-    if (!boat) throw new Error('no boat');
-    // Aim along the bow (open water from a dock) and hold FIRE for 0.3 s.
-    for (let i = 0; i < 18; i++) {
+    const enemy = sim.state.boats[1];
+    if (!boat || !enemy) throw new Error('no boats');
+    // Open lagoon water: shooter facing -z, enemy 8 m ahead.
+    sim.debug.teleport(0, 120, 40, 0);
+    sim.debug.teleport(1, 120, 32, 0);
+    sim.drainEvents();
+    for (let i = 0; i < 30; i++) {
       sim.applyInput('b', { t: 'in', seq: i + 1, role: 'gunner', dYaw: 0, yaw: 0, ep: 0, fire: true, fc: 0, recenter: false, use: null, uc: 0 });
       sim.step(SIM.dt);
     }
-    const fired = sim.drainEvents().filter((e) => e.kind === 'fired');
-    expect(fired.length).toBeGreaterThanOrEqual(2);
-    expect(sim.state.projectiles.length).toBeGreaterThan(0);
+    const events = sim.drainEvents();
+    expect(events.filter((e) => e.kind === 'fired').length).toBeGreaterThanOrEqual(2);
+    expect(boat.firing).toBe(true);
+    expect(enemy.water).toBeGreaterThan(10);
+    expect(enemy.pose.z).toBeLessThan(32);
+    expect(enemy.status).toBe('alive');
+    expect(events.some((e) => e.kind === 'kill')).toBe(false);
   });
 });
