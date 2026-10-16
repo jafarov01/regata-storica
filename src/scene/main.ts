@@ -29,7 +29,7 @@ export async function startScene(root: HTMLElement): Promise<void> {
   if (!canvas || !hudRoot) throw new Error('scene markup missing');
 
   const map = getMap();
-  const sim = createSim(map);
+  const sim = await createSim(map);
   const renderer = createRenderer(canvas, map);
   const hud = new SceneHud(hudRoot);
   const hold = new InputHold();
