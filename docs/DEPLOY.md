@@ -31,19 +31,40 @@ Notes:
 - Rooms live in memory: a redeploy closes every room. Do not push to `main` during the demo.
 - Check it is up: `curl https://<service>.onrender.com/api/health` returns `{"ok":true,...}`. `GET /api/rooms/<CODE>` says whether a room exists (the phone join form uses it).
 
-## 3. Our VPS (fastest: use this when the venue's upload is slow)
+## 3. A VPS (fastest: use this when the venue's upload is slow)
 
-The tunnel serves every file from the scene PC, so the venue's **upload** speed caps loading: at 157 KB/s (measured at Via Falchi) the 4 MB big-screen bundle took over a minute and phones queued behind it. On a VPS the files come from the server's own connection.
+The tunnel serves every file from the scene PC, so the venue's **upload** speed caps loading: at 157 KB/s (measured at Via Falchi) the 4 MB big-screen bundle took over a minute and phones queued behind it. On a VPS the files come from the server's own connection: the big screen loaded in 2 s, phones in 0.2 s.
 
-Live: **https://gondola.179-198-200-73.sslip.io** (Hostinger VPS `vps-fyce`, alongside Coolify). One Docker container (`Dockerfile`: the relay serving the built game on port 3000) behind Coolify's Traefik, which adds HTTPS (Let's Encrypt) and gzip. The `sslip.io` name resolves to the VPS IP, so no DNS record is needed.
-
-Deploy or update (from a machine with the `vps-fyce` SSH alias):
+**Taken down after the event (2026-10-16 evening).** It ran on the Hostinger VPS `vps-fyce` next to Coolify: one Docker container (`Dockerfile`, the relay serving the built game on port 3000) behind Coolify's Traefik, which added HTTPS (Let's Encrypt) and gzip, on the name `gondola.179-198-200-73.sslip.io` (`sslip.io` resolves to the VPS IP, no DNS record needed). To bring it back, from a machine with the `vps-fyce` SSH alias:
 
 ```bash
-ssh vps-fyce 'cd /opt/gondola-royale && git pull && docker build -t gondola-royale . && /opt/gondola-royale-run.sh'
+ssh vps-fyce 'git clone https://github.com/jafarov01/regata-storica.git /opt/gondola-royale && cd /opt/gondola-royale && docker build -t gondola-royale .'
 ```
 
-`/opt/gondola-royale-run.sh` on the VPS replaces the container (it also strips the `Alt-Svc` header with a `gondola-noh3` headers middleware: Coolify's Traefik advertises HTTP/3, and browsers that switched to QUIC got `ERR_QUIC_PROTOCOL_ERROR` on the bundles on 2026-10-16, so the game stays on HTTP/2; browsers cache that advertisement for 30 days, so the script also drops UDP 443 in the `DOCKER-USER` iptables chain, which makes a cached QUIC attempt fail at once and fall back to HTTP/2 for every app on the VPS): `--network coolify`, `--restart unless-stopped`, and the Traefik labels (`Host(gondola.179-198-200-73.sslip.io)`, entrypoints http/https, `tls.certresolver=letsencrypt`, a `compress` middleware, http to https redirect, service port 3000). Rooms live in memory: a redeploy closes open rooms, so redeploy between matches.
+then put this at `/opt/gondola-royale-run.sh` on the VPS (`chmod +x`) and run it; rerun it after every `git pull && docker build`:
+
+```sh
+#!/bin/sh
+set -e
+# No HTTP/3: Traefik advertises QUIC and browsers that switched to it lost every bundle with
+# ERR_QUIC_PROTOCOL_ERROR. Dropping UDP 443 makes them fall back to HTTP/2 (all apps on the host).
+iptables -C DOCKER-USER -p udp --dport 443 -j DROP 2>/dev/null || iptables -I DOCKER-USER 1 -p udp --dport 443 -j DROP
+HOST='gondola.179-198-200-73.sslip.io'
+docker rm -f gondola-royale >/dev/null 2>&1 || true
+docker run -d --name gondola-royale --restart unless-stopped --network coolify \
+  -l traefik.enable=true -l traefik.docker.network=coolify \
+  -l "traefik.http.routers.gondola-http.rule=Host(\`$HOST\`)" -l traefik.http.routers.gondola-http.entrypoints=http \
+  -l traefik.http.routers.gondola-http.middlewares=gondola-https -l traefik.http.routers.gondola-http.service=gondola \
+  -l traefik.http.middlewares.gondola-https.redirectscheme.scheme=https \
+  -l "traefik.http.routers.gondola.rule=Host(\`$HOST\`)" -l traefik.http.routers.gondola.entrypoints=https \
+  -l traefik.http.routers.gondola.tls.certresolver=letsencrypt -l traefik.http.routers.gondola.middlewares=gondola-gzip,gondola-noh3 \
+  -l traefik.http.routers.gondola.service=gondola -l traefik.http.middlewares.gondola-gzip.compress=true \
+  -l "traefik.http.middlewares.gondola-noh3.headers.customResponseHeaders.Alt-Svc=" \
+  -l traefik.http.services.gondola.loadbalancer.server.port=3000 \
+  gondola-royale
+```
+
+Rooms live in memory: a redeploy closes open rooms, so redeploy between matches. To take it down again: `docker rm -f gondola-royale; docker rmi gondola-royale; rm -rf /opt/gondola-royale /opt/gondola-royale-run.sh; iptables -D DOCKER-USER -p udp --dport 443 -j DROP`.
 
 ## When the scene runs on localhost but phones use another address
 
