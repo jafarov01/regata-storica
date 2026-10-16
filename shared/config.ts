@@ -111,6 +111,8 @@ export const PHONE = {
   gyroGain: 2,
   /** Gyro aim: ignore turn rates below this (hand tremor). playtest */
   gyroDeadZoneDegPerSec: 2,
+  /** Gyro aim: low-pass on the turn rate, seconds. Takes the sensor noise out, lags a real turn by about this. */
+  gyroRateTau: 0.05,
   /** Shake-to-bail: a peak is acceleration (without gravity) above this, m/s^2. */
   shakeThreshold: 15,
   /** Minimum time between two counted shake peaks. */
@@ -150,6 +152,8 @@ export const CAMERA = {
   far: 320,
   /** Exponential smoothing time constant for camera position (not for aim). */
   positionTau: 0.12,
+  /** The camera's look direction eases toward the aim with this time constant (jitter, not lag). */
+  lookTau: 0.04,
   /** Haze: fog starts and ends (metres). Hides the far map edge. */
   fogNear: 90,
   fogFar: 260,
@@ -239,7 +243,8 @@ export const POWERS: Record<PowerId, PowerDef> = {
   wave: { id: 'wave', label: 'Wave', tier: 'stretch', weight: 2 },
 };
 
-export const SHIELD = { durationSec: 8 } as const;
+/** A Shield from a blue crate lasts this long, or until it absorbs one hit. */
+export const SHIELD = { durationSec: 5 } as const;
 export const MINE = {
   armDelaySec: 1,
   lifetimeSec: 45,
@@ -258,7 +263,7 @@ export const CRATES = {
   /** Drive within this distance of a crate to collect it. */
   pickupRadius: 3.2,
   /** Share of crate points that are red (weapon) versus blue (power). */
-  weaponShare: 1, // every crate is a weapon crate: powers are off
+  weaponShare: 0.65, // red (Torpedo) crates; the rest are blue instant-Shield crates (TIERS.shieldCrates)
   /** Final-minute frenzy respawn speed-up (Stretch). */
   frenzyRespawnMultiplier: 2,
 } as const;
@@ -295,7 +300,8 @@ export const TIERS = {
   killCam: true, // Should
   animatedCrew: true, // Should
   bailing: false, // Should: shake to bail
-  powers: false, // Shield, Mine, Boost and the blue crates (off with the Engineer)
+  powers: false, // power slots and buttons: Shield, Mine, Boost held by an Engineer (off with the Engineer)
+  shieldCrates: true, // blue crates give an instant 5 s Shield on pickup, no button (the simplified game)
   killFeed: true, // Should
   audio: true, // Should
   smoke: false, // Stretch

@@ -334,6 +334,8 @@ export class ControllerPipeline {
   private steerWeak = true;
   private dYawRad = 0;
   private yawSinceRecenterRad = 0;
+  /** Gyro turn rate after the low-pass (deg/s). */
+  private yawRateFiltered = 0;
   private yawSource: YawSource = 'none';
   private shake = 0;
   private lastHeadingDeg: number | null = null;
@@ -441,7 +443,10 @@ export class ControllerPipeline {
         this.yawSource = 'gyro';
         const rate = yawRateDegPerS(s.rot, upY);
         if (rate !== null) {
-          const step = yawStepRad(rate, dtS, this.t) * (this.invertAim ? -1 : 1);
+          // A short low-pass on the rate takes the sensor noise out of the aim; a real turn lags by about tau.
+          const a = this.t.yawRateTauS > 0 ? 1 - Math.exp(-dtS / this.t.yawRateTauS) : 1;
+          this.yawRateFiltered += (rate - this.yawRateFiltered) * a;
+          const step = yawStepRad(this.yawRateFiltered, dtS, this.t) * (this.invertAim ? -1 : 1);
           this.dYawRad += step;
           this.yawSinceRecenterRad += step;
         }

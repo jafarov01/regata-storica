@@ -4,7 +4,7 @@
  * Rapier's wasm is decoded once by createSim.
  */
 import { describe, expect, it } from 'vitest';
-import { AIM, BOAT, DEFAULT_WEAPON, MATCH, MINE, RESPAWN, SIM, TIERS, WEAPONS } from '../shared/config.ts';
+import { AIM, BOAT, DEFAULT_WEAPON, MATCH, MINE, RESPAWN, SHIELD, SIM, TIERS, WEAPONS } from '../shared/config.ts';
 import type { InputMsg } from '../shared/protocol.ts';
 import type { SimEvent } from '../shared/state.ts';
 import { createSim, type GameSim } from '../src/sim/index.ts';
@@ -262,6 +262,35 @@ describe('B3 weapons and B4 kills', () => {
 });
 
 describe('B5 Shield and Mine', () => {
+  it.skipIf(!TIERS.shieldCrates || TIERS.powers)('a blue crate gives an instant Shield that absorbs one hit, then the crate respawns', async () => {
+    const sim = await duel();
+    const i = sim.state.crates.findIndex((c) => c.category === 'power');
+    const crate = sim.state.crates[i];
+    const home = sim.map.crates[i];
+    if (!crate || !home) throw new Error('no power crate');
+    sim.debug.teleport(1, home.x, home.z, 0);
+    sim.step();
+    const events = sim.drainEvents();
+    expect(kinds(events)).toEqual(expect.arrayContaining(['pickup', 'power']));
+    expect(crate.active).toBe(false);
+    expect(boat(sim, 1).shieldUntil).toBeCloseTo(sim.state.time + SHIELD.durationSec, 1);
+    expect(boat(sim, 1).powers).toEqual([null, null]);
+    // The Shield takes the first Cannon ball; the next one sinks.
+    lineUp(sim, 30);
+    sim.debug.giveWeapon(0, 'cannon');
+    sim.applyInput('g0', gunner(1));
+    const hits: SimEvent[] = [];
+    steps(sim, 0.6, () => hits.push(...sim.drainEvents()));
+    expect(kinds(hits)).toContain('shielded');
+    expect(boat(sim, 1).status).toBe('alive');
+    sim.applyInput('g0', gunner(2));
+    steps(sim, 1.2); // the Cannon fires once a second, then the ball flies 30 m
+    expect(boat(sim, 1).status).toBe('sinking');
+    sim.debug.teleport(1, OPEN.x, OPEN.z - 40, 0);
+    steps(sim, 8.1);
+    expect(crate.active).toBe(true);
+  });
+
   // Off with the simplified game (shared/config.ts TIERS); runs again when the flag is back on.
   it.skipIf(!TIERS.powers)('a Shield absorbs one lethal hit, the next one sinks', async () => {
     const sim = await duel();
@@ -446,6 +475,9 @@ describe('audit fixes (Track B review)', () => {
     expect(boat(sim, 0).crosshair).toBe('lock');
     expect(boat(sim, 0).aimTarget).toBe(1);
     sim.applyInput('g0', { t: 'in', seq: seq++, role: 'gunner', dYaw: 0.1, yaw: 0.1, ep: 0, fire: false, fc: 0, recenter: false, use: null, uc: 0 });
+    // The aim glides to a new reading over one packet interval: two sim steps at 30 Hz packets.
+    sim.step();
+    expect(boat(sim, 0).aimYaw).toBeCloseTo(0.05 * AIM.gainUnderCrosshair, 5);
     sim.step();
     expect(boat(sim, 0).aimYaw).toBeCloseTo(0.1 * AIM.gainUnderCrosshair, 5);
   });

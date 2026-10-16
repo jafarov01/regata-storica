@@ -70,6 +70,8 @@ export interface SensorTuning {
   readonly yawGain: number;
   /** Time constant of the gravity low-pass used as the vertical axis for yaw, seconds. */
   readonly yawGravityTauS: number;
+  /** Low-pass on the gyro turn rate before it is integrated, seconds (0 = none). */
+  readonly yawRateTauS: number;
   /** Rates above this are glitches; consumer gyros saturate around 2000 deg/s. */
   readonly yawMaxDegPerS: number;
   /** A peak of linear acceleration above this counts as one shake (spec: about 15 m/s^2). */
@@ -99,6 +101,7 @@ export interface PhoneConfigLike {
   readonly shakeThreshold: number;
   readonly shakeRefractorySec: number;
   readonly shakeFullRatePerSec: number;
+  gyroRateTau?: number;
 }
 
 /** Builds the tuning from the contract file: `tuningFromPhoneConfig(PHONE)`. */
@@ -111,6 +114,7 @@ export function tuningFromPhoneConfig(p: PhoneConfigLike): SensorTuning {
     steerGravityTauS: p.gravityFilterTau,
     yawGain: p.gyroGain,
     yawDeadDegPerS: p.gyroDeadZoneDegPerSec,
+    yawRateTauS: p.gyroRateTau ?? 0.05,
     shakeThresholdMs2: p.shakeThreshold,
     shakeRefractoryMs: p.shakeRefractorySec * 1000,
     shakePeaksForFull: p.shakeFullRatePerSec,
@@ -126,6 +130,7 @@ export const DEFAULT_SENSOR_TUNING: SensorTuning = {
   yawDeadDegPerS: 2,
   yawGain: 2,
   yawGravityTauS: 0.25,
+  yawRateTauS: 0.05,
   yawMaxDegPerS: 600,
   shakeThresholdMs2: 15,
   shakeRearmMs2: 8,

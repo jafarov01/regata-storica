@@ -16,9 +16,9 @@
  */
 import type { Collider } from '@dimforge/rapier2d-compat';
 import type { AddPlayerOptions, Sim } from '@shared/api.ts';
-import { AIM, HULL, MATCH, POWERS, SIM, TIERS, WEAPONS, type PowerId } from '@shared/config.ts';
+import { AIM, HULL, MATCH, PHONE, POWERS, SIM, TIERS, WEAPONS, type PowerId } from '@shared/config.ts';
 import { getMap, type ParsedMap } from '@shared/map.ts';
-import { makeRng, wrapAngle } from '@shared/math.ts';
+import { lerpAngle, makeRng, wrapAngle } from '@shared/math.ts';
 import { NET, type GunnerIn, type InputMsg, type Lobby, type PhoneControl } from '@shared/protocol.ts';
 import type { BoatState, GameState, Phase, SimEvent } from '@shared/state.ts';
 import { AimTracker } from '../net/inputHold.ts';
@@ -60,6 +60,8 @@ export class GameSim implements Sim {
   private events: SimEvent[] = [];
   private readonly inputs = new Map<string, InputMsg>();
   private readonly aims = new Map<string, AimTracker>();
+  /** Per Gunner: the packet-to-packet glide of the aim (see glideAim). */
+  private readonly aimGlide = new Map<string, { from: number; to: number; t: number; seq: number; ep: number }>();
   private readonly uses = new Map<string, AimTracker>();
   private readonly crew: CrewFrame[] = [];
   private readonly rng = makeRng(1);
@@ -366,7 +368,7 @@ export class GameSim implements Sim {
         // The gain drops whenever an enemy is under the crosshair, also while a lock or hit shows.
         const gain = boat.aimTarget !== null ? AIM.gainUnderCrosshair : 1;
         const aim = tracker.apply(input, boat.pose.yaw, gain);
-        if (Number.isFinite(aim)) boat.aimYaw = wrapAngle(aim);
+        if (Number.isFinite(aim)) boat.aimYaw = this.glideAim(id, input, wrapAngle(aim), boat.aimYaw);
         frame.fireHeld = input.fire && !dropped;
         // Taps are always consumed, but only count in a fight: a tap in the countdown is not a queued shot.
         if (tracker.takeFireTap(input) && live) this.weapons.tap(boat.team);
@@ -378,6 +380,41 @@ export class GameSim implements Sim {
     }
     if (!hasGunner) boat.aimYaw = boat.pose.yaw;
     this.mirror(boat, frame);
+  }
+
+  /**
+   * Phones send the aim at 30 Hz and the sim runs at 60: applied raw, the aim (and the camera
+   * that follows it) would step every other frame. Each new reading is reached by gliding from
+   * the current aim over one packet interval, so the motion is continuous with one packet of
+   * delay. A recenter or calibrate (new epoch) snaps; so does a re-base without a new packet
+   * (respawn).
+   */
+  private glideAim(id: string, input: GunnerIn, target: number, current: number): number {
+    let g = this.aimGlide.get(id);
+    if (!g) {
+      g = { from: target, to: target, t: 1, seq: input.seq, ep: input.ep };
+      this.aimGlide.set(id, g);
+      return target;
+    }
+    if (input.seq !== g.seq) {
+      g.seq = input.seq;
+      // A reading more than a quarter turn from the current aim is a discontinuity (recenter,
+      // reload, a phone that changed hands), not a hand motion: no sweep across the scene.
+      if (input.ep !== g.ep || Math.abs(wrapAngle(target - current)) > 1.0) {
+        g.ep = input.ep;
+        g.from = g.to = target;
+        g.t = 1;
+      } else {
+        g.from = current;
+        g.to = target;
+        g.t = 0;
+      }
+    } else if (Math.abs(wrapAngle(target - g.to)) > 1e-6) {
+      g.from = g.to = target;
+      g.t = 1;
+    }
+    g.t = Math.min(1, g.t + SIM.dt * PHONE.inputHz);
+    return lerpAngle(g.from, g.to, g.t);
   }
 
   private takePowerTap(id: string, team: number, uc: number, use: 0 | 1 | null): void {

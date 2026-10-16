@@ -415,26 +415,43 @@ export class SceneHud {
       this.wallsLayer = layer;
     }
     g.drawImage(this.wallsLayer, 0, 0);
-    const dot = Math.max(2, w / 110);
+    const dot = Math.max(2.5, w / 90);
+    // Crates: red for weapons, blue for powers.
     for (const c of state.crates) {
       if (!c.active) continue;
       g.fillStyle = c.category === 'weapon' ? '#ff5a46' : '#6fb8ff';
-      g.fillRect(px(c.x) - dot / 2, pz(c.z) - dot / 2, dot, dot);
+      g.beginPath();
+      g.moveTo(px(c.x), pz(c.z) - dot * 0.8);
+      g.lineTo(px(c.x) + dot * 0.8, pz(c.z));
+      g.lineTo(px(c.x), pz(c.z) + dot * 0.8);
+      g.lineTo(px(c.x) - dot * 0.8, pz(c.z));
+      g.closePath();
+      g.fill();
     }
+    // Every boat, always: the whole room reads the map, so nobody hides on it. Sunk boats fade.
     for (const b of state.boats) {
-      if (!isRevealed(state, m, b)) continue;
+      if (b.status === 'out') continue;
       const colour = state.teams[b.team]?.colour ?? '#fff';
+      const alive = b.status === 'alive';
       g.save();
       g.translate(px(b.pose.x), pz(b.pose.z));
       // Screen y is +z; a yaw of 0 points up (-z). Canvas rotation is clockwise, yaw is counter-clockwise.
       g.rotate(-b.pose.yaw);
+      g.globalAlpha = alive ? 1 : 0.45;
+      // A soft halo in the team colour so the arrow reads against the walls.
       g.fillStyle = colour;
-      g.strokeStyle = '#000';
-      g.lineWidth = 1;
+      g.globalAlpha = alive ? 0.28 : 0.12;
       g.beginPath();
-      g.moveTo(0, -dot * 2.2);
-      g.lineTo(dot * 1.3, dot * 1.6);
-      g.lineTo(-dot * 1.3, dot * 1.6);
+      g.arc(0, 0, dot * 3.2, 0, Math.PI * 2);
+      g.fill();
+      g.globalAlpha = alive ? 1 : 0.45;
+      g.strokeStyle = '#fff';
+      g.lineWidth = Math.max(1.5, dot * 0.45);
+      g.beginPath();
+      g.moveTo(0, -dot * 2.6);
+      g.lineTo(dot * 1.6, dot * 1.9);
+      g.lineTo(0, dot * 1.0);
+      g.lineTo(-dot * 1.6, dot * 1.9);
       g.closePath();
       g.fill();
       g.stroke();

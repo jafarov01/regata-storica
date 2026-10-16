@@ -154,6 +154,14 @@ export class Crates {
       this.ctx.emit({ kind: 'pickup', team, category: 'weapon', item: weapon, x: crate.x, z: crate.z });
       return true;
     }
+    // Blue crate with the power slots off: an instant Shield, no slot and no button.
+    if (!TIERS.powers) {
+      if (!TIERS.shieldCrates) return false;
+      boat.shieldUntil = state.time + SHIELD.durationSec;
+      this.ctx.emit({ kind: 'pickup', team, category: 'power', item: 'shield', x: crate.x, z: crate.z });
+      this.ctx.emit({ kind: 'power', team, power: 'shield', x: crate.x, z: crate.z });
+      return true;
+    }
     const slot = freePowerSlot(boat.powers);
     if (slot === null) return false;
     const power = rollPower(rng);

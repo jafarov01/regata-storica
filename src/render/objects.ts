@@ -1,5 +1,5 @@
 import {
-  BoxGeometry, Color, ConeGeometry, CylinderGeometry, Group, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial,
+  AdditiveBlending, BoxGeometry, Color, ConeGeometry, CylinderGeometry, Group, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial,
   Object3D, SphereGeometry, type BufferGeometry, type Material, type Texture,
 } from 'three';
 import { lerp } from '@shared/math.ts';
@@ -48,19 +48,25 @@ export function createObjects(crateTexture: Texture) {
   const mines = new InstancePool(group, new SphereGeometry(0.45, 10, 8), new MeshStandardMaterial({ color: 0x333939, metalness: 0.4 }));
   const spikes = new InstancePool(group, new ConeGeometry(0.14, 0.4, 5), new MeshStandardMaterial({ color: 0x545858, metalness: 0.5 }));
   const jets = new InstancePool(group, new ConeGeometry(0.6, 9, 10, 1, true).rotateZ(Math.PI / 2).translate(4.5, 0, 0), new MeshBasicMaterial({ color: 0xaedfff, transparent: true, opacity: 0.4, depthWrite: false }));
-  const pools = [crates, lanterns, cannon, mortar, torpedo, mines, spikes, jets];
+  // Blue crates carry a Shield: a blue bubble round the crate says so from across the canal.
+  const shields = new InstancePool(group, new SphereGeometry(1.25, 18, 12), new MeshBasicMaterial({ color: 0x5fb0ff, transparent: true, opacity: 0.3, blending: AdditiveBlending, depthWrite: false }));
+  const pools = [crates, lanterns, cannon, mortar, torpedo, mines, spikes, jets, shields]; // the Shield pool last: tests index the others by creation order
   const trails = new Map<number, WakeTrail>();
   const seen = new Set<number>();
   return {
     group,
     update(state: RenderState, alpha: number, time: number): void {
-      crates.begin(state.crates.length); lanterns.begin(state.crates.length);
+      crates.begin(state.crates.length); lanterns.begin(state.crates.length); shields.begin(state.crates.length);
       for (const c of state.crates) {
         if (!c.active) continue;
         dummy.scale.set(1, 1, 1); dummy.rotation.set(0, c.yaw, Math.sin(time + c.id) * 0.035);
         const y = 0.45 + Math.sin(time * 1.1 + c.id) * 0.08;
         dummy.position.set(c.x, y, c.z); crates.add(dummy);
         dummy.position.y = y + 0.85; lanterns.add(dummy, c.kind === 'weapon' ? 0xff3424 : 0x268dff);
+        if (c.kind === 'power') {
+          dummy.rotation.set(0, 0, 0); dummy.position.y = y + 0.4;
+          dummy.scale.setScalar(1 + 0.06 * Math.sin(time * 3 + c.id)); shields.add(dummy);
+        }
       }
       cannon.begin(state.projectiles.length); mortar.begin(state.projectiles.length); torpedo.begin(state.projectiles.length);
       seen.clear();

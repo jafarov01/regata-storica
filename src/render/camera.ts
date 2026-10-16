@@ -2,7 +2,7 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { CAMERA } from '@shared/config.ts';
 import type { ParsedMap } from '@shared/map.ts';
-import { smoothingAlpha } from '@shared/math.ts';
+import { lerpAngle, smoothingAlpha } from '@shared/math.ts';
 
 export function clampCamera(map: ParsedMap, bx: number, bz: number, cx: number, cz: number): { x: number; z: number } {
   const distance = Math.hypot(cx - bx, cz - bz);
@@ -25,9 +25,13 @@ export class CameraRig {
   private killcam = false;
   private lastX = 0;
   private lastZ = 0;
+  /** The look direction eases toward the aim: hides the last of the 30 Hz packet jitter. */
+  private look = 0;
   constructor(private readonly map: ParsedMap) {}
   update(x: number, z: number, aim: number, team: number, killcam: boolean, dt: number, aspect: number, snap = false): void {
-    const fx = Math.cos(aim), fz = Math.sin(aim);
+    const hard = snap || !this.settled || team !== this.target || killcam !== this.killcam;
+    this.look = hard ? aim : lerpAngle(this.look, aim, smoothingAlpha(dt, CAMERA.lookTau));
+    const fx = Math.cos(this.look), fz = Math.sin(this.look);
     const wanted = clampCamera(this.map, x, z, x - fx * CAMERA.back, z - fz * CAMERA.back);
     const teleport = team === this.target && Math.hypot(x - this.lastX, z - this.lastZ) > 20;
     if (snap || !this.settled || teleport || (!killcam && (this.killcam || team !== this.target))) {

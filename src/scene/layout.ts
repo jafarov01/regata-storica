@@ -58,7 +58,7 @@ export function computeLayout(teams: number, width: number, height: number): Lay
       break;
     case 2:
       cells = grid(2, 1);
-      minimap = centredSquare(0.5, 0.84, 0.26, aspect);
+      minimap = centredSquare(0.5, 0.83, 0.3, aspect);
       break;
     case 3: {
       const g = grid(2, 2);
@@ -69,7 +69,7 @@ export function computeLayout(teams: number, width: number, height: number): Lay
     }
     case 4:
       cells = grid(2, 2);
-      minimap = centredSquare(0.5, 0.5, 0.24, aspect);
+      minimap = centredSquare(0.5, 0.5, 0.3, aspect);
       break;
     case 5: {
       const g = grid(3, 2);
@@ -80,7 +80,7 @@ export function computeLayout(teams: number, width: number, height: number): Lay
     }
     default:
       cells = grid(3, 2);
-      minimap = centredSquare(0.5, 0.5, 0.22, aspect);
+      minimap = centredSquare(0.5, 0.5, 0.27, aspect);
   }
   return {
     width,
