@@ -40,7 +40,7 @@ All 22 sounds are **in `public/assets/sounds/` as MP3** and play in the game. Th
 | `pickup`, `respawn`, `boost` | crate collected, boat back at a dock, Boost used |
 | `wood-bump`, `wood-scrape` | hitting walls (louder with speed), rams, dropping a Mine |
 | `beep`, `horn` | countdown 3-2-1, battle (and sudden death) starts |
-| `lobby-loop` (loop) | lobby and results; fades out for the match |
+| `lobby-loop` (loop) | lobby and results; fades out for the match. Replaced by the background song when `public/assets/music/background.mp3` exists (git-ignored, see that folder's README): the song plays in every phase, quieter during the match |
 | `win-fanfare` | the winner is decided |
 | `water-lapping` (loop), `seagulls`, `bells-distant` | ambience all the time; gulls every 15 to 30 s, bells every 50 to 90 s |
 

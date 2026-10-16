@@ -9,3 +9,7 @@ coverage/
 
 # Keep research evidence logs
 !docs/research/**/*.log
+
+# Background song: copyrighted music stays out of the public repo; each scene PC adds its own file.
+public/assets/music/*
+!public/assets/music/README.md
