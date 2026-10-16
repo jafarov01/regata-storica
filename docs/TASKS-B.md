@@ -41,6 +41,8 @@ Checked against SPEC, the config numbers and TIERS, and the research. Fixed, eac
 - **Lobby resend.** A phone that reloaded into the same seat never got the roster again (it had not changed). Every join, rejoin and leave now resends it (`LobbySync`).
 - **Kill feed** sat over the right cell's team label at the centre seam (2, 4, 6 teams); it now sits below the labels.
 - **Steering at rest** was 0.27 rad/s. `TUNING.boat.steerTorqueBaseMul` (1.85) gives the research's 0.5 rad/s at rest and about 1.15 to 1.3 rad/s at speed.
+- **Dropped phones** (found by the Track A audit): a phone that went offline kept its last packet, so a Pilot holding GAS kept driving. A player that is disconnected or silent for `NET.inputStaleMs` now coasts (no gas, fire or shake; aim holds).
+- **Shot landed.** The shooter's Gunner now gets `Evt hit` with `detail: 'landed'` (compass pulse and "HIT!" on the phone), the victim crew the plain `hit`.
 - Smaller: no per-step allocations left in the boat poses, aim helpers, bot brains and crate loop; bot aim rate in sim time (`SIM.dt`); bow arrow angle wrapped; Water Cannon cue maps cleared at match start; new `gr.sim.debug.endPhase()` ends the countdown, battle (sudden death if tied) or results on the next step.
 
 Checked and correct: yaw and Rapier conventions, respawn docks (80 m from every alive enemy, farthest as fallback), inventory wipe, same-weapon top-up, last shot back to the Water Cannon, two power slots, 8 s crates with TIERS rolls, Torpedo cone (40 deg total), assist 4 deg, Mine arming and dropper credit, Shield, ram kills, bailing and auto-drain, sudden death between tied teams, ranking, match flow and rematch.

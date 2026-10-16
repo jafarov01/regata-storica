@@ -80,6 +80,12 @@ export function forwardEvents(state: GameState, events: readonly SimEvent[], sen
       case 'hit':
         if (e.cause === 'watercannon') break;
         for (const pid of crew(e.victim)) send(pid, { t: 'evt', kind: 'hit' });
+        {
+          // The shooter's Gunner gets a "shot landed" cue (compass pulse, no hit haptic).
+          const members = state.teams[e.team]?.members ?? [];
+          const gunner = members[1] ?? members[0];
+          if (gunner && e.team !== e.victim && !state.players[gunner]?.virtual) send(gunner, { t: 'evt', kind: 'hit', detail: 'landed' });
+        }
         break;
       case 'sunk':
         for (const pid of crew(e.team)) send(pid, { t: 'evt', kind: 'sunk', detail: state.teams[e.killerTeam]?.name ?? '' });

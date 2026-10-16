@@ -19,7 +19,7 @@ import type { AddPlayerOptions, Sim } from '@shared/api.ts';
 import { AIM, HULL, MATCH, POWERS, SIM, TIERS, WEAPONS, type PowerId } from '@shared/config.ts';
 import { getMap, type ParsedMap } from '@shared/map.ts';
 import { makeRng, wrapAngle } from '@shared/math.ts';
-import type { GunnerIn, InputMsg, Lobby, PhoneControl } from '@shared/protocol.ts';
+import { NET, type GunnerIn, type InputMsg, type Lobby, type PhoneControl } from '@shared/protocol.ts';
 import type { BoatState, GameState, Phase, SimEvent } from '@shared/state.ts';
 import { AimTracker } from '../net/inputHold.ts';
 import { Hull, detectRam, type HullInput, type RamResult } from './boat.ts';
@@ -346,9 +346,12 @@ export class GameSim implements Sim {
     for (const id of team.members) {
       const input = this.inputs.get(id);
       if (!input) continue;
+      const p = s.players[id];
+      // A phone that dropped off the network coasts: its last packet (GAS or FIRE held) is not replayed.
+      const dropped = !!p && !p.virtual && (!p.connected || s.time - p.lastInputAt > NET.inputStaleMs / 1000);
       if (input.role === 'pilot') {
+        if (dropped) continue;
         // Steering stays at zero until the Pilot's phone has calibrated (ARCHITECTURE 7.11).
-        const p = s.players[id];
         const calibrated = !!p && (p.calibrated || p.virtual);
         frame.drive.steer = calibrated && Number.isFinite(input.steer) ? input.steer : 0;
         frame.drive.gas = input.gas;
@@ -364,12 +367,12 @@ export class GameSim implements Sim {
         const gain = boat.aimTarget !== null ? AIM.gainUnderCrosshair : 1;
         const aim = tracker.apply(input, boat.pose.yaw, gain);
         if (Number.isFinite(aim)) boat.aimYaw = wrapAngle(aim);
-        frame.fireHeld = input.fire;
+        frame.fireHeld = input.fire && !dropped;
         // Taps are always consumed, but only count in a fight: a tap in the countdown is not a queued shot.
         if (tracker.takeFireTap(input) && live) this.weapons.tap(boat.team);
         if (gunnerHasPowers(s, boat.team)) this.takePowerTap(id, boat.team, input.uc, input.use);
       } else {
-        frame.shake = Number.isFinite(input.shake) ? input.shake : 0;
+        frame.shake = !dropped && Number.isFinite(input.shake) ? input.shake : 0;
         this.takePowerTap(id, boat.team, input.uc, input.use);
       }
     }

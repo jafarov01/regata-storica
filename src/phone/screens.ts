@@ -114,8 +114,8 @@ export class PhoneScreens {
     if (e.kind === 'shielded') this.cue('SHIELD HELD');
     if (e.kind === 'rammed') this.cue('RAMMED!');
     if (e.kind === 'respawn') this.cue('BACK IN!');
-    // Our own shot landed. phoneFeed sends 'hit' only to the victim crew today; a 'landed' detail
-    // for the shooter's Gunner (SPEC section 3: "a flash when a shot lands") lights this up.
+    // Our own shot landed: phoneFeed sends the shooter's Gunner 'hit' with a 'landed' detail
+    // (SPEC section 3: "a flash when a shot lands").
     if (e.kind === 'hit' && e.detail === 'landed') {
       this.cue('HIT!');
       this.compass.classList.remove('landed');

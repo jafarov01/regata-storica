@@ -556,6 +556,39 @@ describe('audit fixes: phone feed, lobby resend, kill-cam', () => {
     expect(sync.take(sim.lobbySnapshot())).not.toBeNull();
   });
 
+  it("sends the shooter's Gunner a 'landed' hit cue, and the victim crew a plain hit", async () => {
+    const sim = await createSim();
+    sim.setTeamSize(2);
+    for (const id of ['a', 'b', 'c', 'd']) sim.addPlayer(id, id.toUpperCase());
+    const [shooter, victim] = sim.state.teams;
+    const sent: [string | null, string, string | undefined][] = [];
+    forwardEvents(sim.state, [{ kind: 'hit', team: 0, victim: 1, cause: 'cannon', x: 0, z: 0 }], (pid, evt) => sent.push([pid, evt.kind, evt.detail]));
+    expect(sent).toContainEqual([shooter?.members[1] ?? null, 'hit', 'landed']);
+    for (const pid of victim?.members ?? []) expect(sent).toContainEqual([pid, 'hit', undefined]);
+    expect(sent).toHaveLength(1 + (victim?.members.length ?? 0));
+  });
+
+  it('a phone that dropped off the network coasts instead of replaying its last packet', async () => {
+    const sim = await createSim();
+    sim.addPlayer('p0', 'P0');
+    sim.addPlayer('kb', 'KB', { virtual: true, team: 1, role: 'pilot' });
+    sim.applyMessage('p0', { t: 'calibrate' });
+    expect(sim.start()).toBe(true);
+    steps(sim, MATCH.countdownSec + 0.05);
+    sim.debug.teleport(0, OPEN.x, OPEN.z, 0);
+    sim.applyInput('p0', pilot(0, true));
+    steps(sim, 1);
+    expect(boat(sim, 0).gas).toBe(true);
+    steps(sim, 1); // no packet for 2 s: past NET.inputStaleMs
+    expect(boat(sim, 0).gas).toBe(false);
+    sim.applyInput('p0', pilot(0, true));
+    sim.step();
+    expect(boat(sim, 0).gas).toBe(true);
+    sim.setConnected('p0', false);
+    sim.step();
+    expect(boat(sim, 0).gas).toBe(false);
+  });
+
   it('the kill-cam follows the killer and ends for good when the killer sinks', async () => {
     const sim = await duel();
     const views = new CameraViews();
