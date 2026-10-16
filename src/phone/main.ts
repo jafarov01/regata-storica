@@ -20,7 +20,8 @@ import { TEAM_COLOURS } from '@shared/config.ts';
 import { PhoneClient, type LinkState } from '../net/client.ts';
 import { getPlayerName, getPlayerToken, setPlayerName } from '../net/identity.ts';
 import { startController, type PhoneController } from './controller.ts';
-import type { MotionHealth } from './sensors.ts';
+import { saveInvertAim, loadInvertAim, type MotionHealth } from './sensors.ts';
+import { PhoneScreens, SCREENS_HTML } from './screens.ts';
 import { haptic } from './wake.ts';
 
 const ROLE_LABEL: Record<Role, string> = { pilot: 'PILOT', gunner: 'GUNNER', engineer: 'ENGINEER' };
@@ -91,23 +92,30 @@ function runRoom(root: HTMLElement, room: string): void {
         <span id="me-name"></span><span id="me-role"></span><span id="status"></span>
       </header>
       <section id="pads-mount" class="pads-mount" hidden></section>
-      <div id="role-view" class="role-view" hidden>
-        <div class="role-name" id="role-name"></div>
-        <div class="wheel" id="wheel"><div class="wheel-spoke"></div><div class="wheel-spoke wheel-spoke-2"></div><div class="wheel-hub"></div></div>
-        <div class="compass" id="compass"><div class="needle" id="needle"></div><div class="bow-mark">BOW</div></div>
-        <div class="meter" id="meter"><div class="meter-fill" id="meter-fill"></div><span>WATER</span></div>
-        <div class="role-tip" id="role-tip"></div>
-      </div>
+      ${SCREENS_HTML}
       <section id="lobby" class="phone-lobby">
-        <input id="name" class="name-input" maxlength="16" />
+        <input id="name" class="name-input" maxlength="16" aria-label="Your name" />
         <div class="row">
           <button id="swap-role" class="chip" type="button">Swap role</button>
           <button id="move-team" class="chip" type="button">Move team</button>
           <button id="ready" class="chip" type="button">Ready</button>
         </div>
         <button id="enable" class="big-button primary" type="button">ENABLE CONTROLS<small>One tap: motion sensors and screen wake</small></button>
+        <div class="row" id="after-enable" hidden>
+          <button id="try" class="chip" type="button">Try controls</button>
+          <button id="invert" class="chip" type="button">Invert aim: off</button>
+        </div>
         <p id="hint" class="muted"></p>
+        <a id="rejoin" class="chip" href="/play" hidden>Enter another code</a>
       </section>
+      <section id="resume" class="phone-overlay resume" hidden>
+        <div class="big">MATCH ON</div>
+        <button id="resume-btn" class="big-button primary" type="button">TAP TO RESUME CONTROLS</button>
+      </section>
+      <section id="spectate" class="phone-overlay spectate" hidden>
+        <div class="big">YOU'RE UP NEXT</div><div>The match is full or already running. You join at the next lobby.</div>
+      </section>
+      <button id="back-lobby" class="chip back-lobby" type="button" hidden>Back to lobby</button>
       <div id="hud" class="phone-hud" hidden></div>
       <div id="alert" class="phone-alert" hidden></div>
       <div id="rotate" class="rotate-overlay">Turn your phone sideways</div>
@@ -125,9 +133,13 @@ function runRoom(root: HTMLElement, room: string): void {
   const hudEl = $<HTMLElement>('#hud');
   const lobbyEl = $<HTMLElement>('#lobby');
   const padsMount = $<HTMLElement>('#pads-mount');
-  const roleView = $<HTMLElement>('#role-view');
   const rotateEl = $<HTMLElement>('#rotate');
   const enableBtn = $<HTMLButtonElement>('#enable');
+  const resumeEl = $<HTMLElement>('#resume');
+  const spectateEl = $<HTMLElement>('#spectate');
+  const backLobby = $<HTMLButtonElement>('#back-lobby');
+  const invertBtn = $<HTMLButtonElement>('#invert');
+  const screens = new PhoneScreens(root, padsMount);
 
   const me: Me = { pid: null, team: -1, role: 'pilot', member: null };
   let lobby: Lobby | null = null;
@@ -135,25 +147,40 @@ function runRoom(root: HTMLElement, room: string): void {
   let phase: Phase = 'lobby';
   let ready = false;
   let landscape = true;
+  let trying = false;
+  let online = false;
   let controller: PhoneController | null = null;
-  let alertTimer: number | null = null;
+  let enabling = false;
+  let message = '';
+  let messageTimer: number | null = null;
   nameInput.value = getPlayerName();
+  invertBtn.textContent = `Invert aim: ${loadInvertAim() ? 'on' : 'off'}`;
 
-  /** A message that stays readable over the pads (the lobby hint is hidden during a match). */
+  /** One message line: in the lobby under the buttons, during a match as a banner over the pads. */
   function say(text: string, ms = 0): void {
+    message = text;
+    if (messageTimer !== null) window.clearTimeout(messageTimer);
+    messageTimer = ms > 0 && text ? window.setTimeout(() => say(''), ms) : null;
+    renderMessage();
+  }
+
+  function renderMessage(): void {
+    const warn = !online ? 'Reconnecting to the big screen...' : hud?.stale && isPlaying() ? "The big screen can't hear you. Check your connection." : '';
+    const text = message || warn;
     hintEl.textContent = text || (controller && phase === 'lobby' ? 'Controls on. Waiting for the host to start.' : '');
     alertEl.textContent = text;
-    alertEl.hidden = text === '' || phase === 'lobby';
-    if (alertTimer !== null) window.clearTimeout(alertTimer);
-    alertTimer = ms > 0 && text ? window.setTimeout(() => say(''), ms) : null;
+    alertEl.hidden = text === '' || !isPlaying();
   }
 
   const client = new PhoneClient(room, getPlayerToken(), nameInput.value, {
     onLink: (state: LinkState, detail?: string) => {
-      statusEl.textContent = state === 'online' ? '' : state === 'connecting' ? 'connecting...' : `offline${detail ? ` (${detail})` : ''}`;
+      online = state === 'online';
+      statusEl.textContent = online ? '' : state === 'connecting' ? 'connecting...' : `offline${detail ? ` (${detail})` : ''}`;
+      renderMessage();
     },
     onWelcome: (w) => {
       me.pid = w.pid;
+      $('#rejoin').hidden = true;
       say(w.queued ? 'A match is running: you join at the next lobby.' : w.sceneOnline ? '' : 'Waiting for the big screen...');
       findMe();
       render();
@@ -172,18 +199,29 @@ function runRoom(root: HTMLElement, room: string): void {
       }
       setPhase(h.phase);
       renderHud(h);
+      screens.onHud(h, isPlaying());
+      renderMessage();
     },
     onEvt: (e) => {
+      screens.onEvt(e);
       if (e.kind === 'fired') haptic('fire', phoneEl);
       if (e.kind === 'hit' || e.kind === 'sunk') haptic('hit', phoneEl);
     },
     onRoom: (r) => say(r.sceneOnline ? '' : 'The big screen is reconnecting...'),
-    onError: (e) => say(ERR_TEXT[e.code] ?? `Error: ${e.code}`),
+    onError: (e) => {
+      say(ERR_TEXT[e.code] ?? `Error: ${e.code}`);
+      if (e.code === 'no_room' || e.code === 'room_full' || e.code === 'room_closed' || e.code === 'kicked') $('#rejoin').hidden = false;
+    },
   });
+
+  function isPlaying(): boolean {
+    return controller !== null && (phase !== 'lobby' || trying) && me.team >= 0;
+  }
 
   function setPhase(next: Phase): void {
     if (next === phase) return;
     phase = next;
+    if (phase !== 'lobby') trying = false;
     if (phase === 'countdown' && controller && (me.role === 'pilot' || me.role === 'gunner')) {
       say(me.role === 'pilot' ? 'Hold the phone like a wheel and tap CALIBRATE' : 'Point the phone at the big screen and tap CALIBRATE', 6000);
     }
@@ -206,7 +244,8 @@ function runRoom(root: HTMLElement, room: string): void {
   }
 
   function hasPowers(): boolean {
-    return me.role === 'engineer' || (me.role === 'gunner' && (lobby?.teamSize ?? 3) === 2);
+    const teamSize = lobby?.teamSize ?? (hud?.hasPowers ? 2 : 3);
+    return me.role === 'engineer' || (me.role === 'gunner' && teamSize === 2);
   }
 
   function render(): void {
@@ -215,54 +254,37 @@ function runRoom(root: HTMLElement, room: string): void {
     phoneEl.dataset['role'] = me.role;
     phoneEl.dataset['phase'] = phase;
     $('#me-name').textContent = nameInput.value;
-    $('#me-role').textContent = me.team >= 0 ? `${TEAM_COLOURS[me.team]?.name ?? ''} · ${ROLE_LABEL[me.role]}` : 'Spectator';
-    $('#role-name').textContent = ROLE_LABEL[me.role];
+    $('#me-role').textContent = me.team >= 0 ? `${TEAM_COLOURS[me.team]?.name ?? ''} · ${ROLE_LABEL[me.role]}` : 'Waiting';
     const inLobby = phase === 'lobby';
-    const playing = controller !== null && !inLobby;
-    lobbyEl.hidden = playing;
+    const playing = isPlaying();
+    const seatedInMatch = !inLobby && me.team >= 0;
+    lobbyEl.hidden = playing || seatedInMatch || (!inLobby && me.pid !== null);
+    resumeEl.hidden = !(seatedInMatch && controller === null);
+    spectateEl.hidden = !(!inLobby && me.pid !== null && me.team < 0);
     padsMount.hidden = !playing;
-    roleView.hidden = !playing;
-    hudEl.hidden = !playing;
-    alertEl.hidden = !playing || alertEl.textContent === '';
+    hudEl.hidden = !playing || trying;
+    backLobby.hidden = !(playing && trying);
+    screens.setPlaying(playing, me.role);
     $('#ready').classList.toggle('on', ready);
     enableBtn.hidden = controller !== null;
-    if (controller && inLobby && !hintEl.textContent) hintEl.textContent = 'Controls on. Waiting for the host to start.';
+    $('#after-enable').hidden = controller === null;
+    invertBtn.hidden = me.role !== 'gunner';
     controller?.setRole(me.role, me.role === 'gunner' && hasPowers());
     rotateEl.classList.toggle('visible', playing && !landscape && me.role !== 'engineer');
+    renderMessage();
   }
 
   function renderHud(h: Hud): void {
     const t = Math.max(0, Math.ceil(h.timeLeft));
     const clock = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
     const parts = [`${h.phase === 'countdown' ? 'STARTS IN' : h.phase.toUpperCase()} ${clock}`, `${h.teamName} K ${h.kills} · D ${h.deaths}`];
-    if (!h.alive) parts.push(`SUNK${h.sunkBy ? ` by ${h.sunkBy}` : ''} · back in ${Math.ceil(h.respawnIn)}`);
-    if (h.role === 'gunner') parts.push(`${h.weapon}${Number.isFinite(h.ammo) ? ` ${h.ammo}` : ''}`);
-    if (h.hasPowers) parts.push(`powers: ${h.powers.map((p) => p ?? '-').join(' / ')}`);
-    if (h.stale) parts.push('big screen not hearing you');
+    if (h.protectedFor > 0) parts.push(`protected ${Math.ceil(h.protectedFor)}`);
     hudEl.textContent = parts.join('   ');
   }
 
-  // Role graphic, every animation frame while playing: wheel (Pilot), compass (Gunner), water meter (Engineer).
-  const wheel = $<HTMLElement>('#wheel');
-  const needle = $<HTMLElement>('#needle');
-  const meterFill = $<HTMLElement>('#meter-fill');
-  const tip = $<HTMLElement>('#role-tip');
+  // Sensor-driven parts of the role screen, every animation frame.
   const animate = (): void => {
-    if (controller && !roleView.hidden) {
-      const snap = controller.snapshot();
-      if (me.role === 'pilot') {
-        wheel.style.transform = `rotate(${(snap.steer * 90).toFixed(1)}deg)`;
-        tip.textContent = snap.steerCalibrated ? (snap.steerWeak ? 'Hold the phone more upright' : '') : 'Tap CALIBRATE to steer';
-      } else if (me.role === 'gunner') {
-        // Needle = aim relative to the bow from the scene (falls back to the local yaw before the first Hud).
-        const rel = hud ? hud.aimRel : snap.yawSinceRecenterRad;
-        needle.style.transform = `rotate(${(-rel * 180 / Math.PI).toFixed(1)}deg)`;
-        tip.textContent = hud?.onTarget ? 'ON TARGET' : '';
-      } else {
-        meterFill.style.height = `${Math.round(hud?.water ?? 0)}%`;
-        tip.textContent = hud?.bail ? 'SHAKE TO BAIL' : '';
-      }
-    }
+    if (controller) screens.frame(me.role, controller.snapshot(), hud);
     requestAnimationFrame(animate);
   };
   requestAnimationFrame(animate);
@@ -304,9 +326,25 @@ function runRoom(root: HTMLElement, room: string): void {
     client.ready(ready);
     render();
   });
-  // Must stay synchronous up to startController(): iOS only grants motion inside the tap.
-  enableBtn.addEventListener('click', () => {
-    if (controller) return;
+  $('#try').addEventListener('click', () => {
+    trying = true;
+    render();
+  });
+  backLobby.addEventListener('click', () => {
+    trying = false;
+    render();
+  });
+  invertBtn.addEventListener('click', () => {
+    const on = !loadInvertAim();
+    saveInvertAim(on);
+    controller?.pipeline.setInvertAim(on);
+    invertBtn.textContent = `Invert aim: ${on ? 'on' : 'off'}`;
+  });
+
+  /** Must stay synchronous up to startController(): iOS only grants motion inside the tap. */
+  function enable(): void {
+    if (controller || enabling) return;
+    enabling = true;
     enableBtn.disabled = true;
     void startController({
       role: me.role,
@@ -328,14 +366,21 @@ function runRoom(root: HTMLElement, room: string): void {
           say('Calibrated', 1500);
         } else say('Hold the phone upright like a wheel, then tap CALIBRATE again.', 3000);
       },
-    }).then((c) => {
-      controller = c;
-      if (!c.enable.motion.ok) say(c.enable.motion.message);
-      render();
-    }, (err: unknown) => {
-      enableBtn.disabled = false;
-      say(`Could not enable controls: ${err instanceof Error ? err.message : String(err)}`);
-    });
-  });
+    }).then(
+      (c) => {
+        controller = c;
+        enabling = false;
+        if (!c.enable.motion.ok) say(c.enable.motion.message);
+        render();
+      },
+      (err: unknown) => {
+        enabling = false;
+        enableBtn.disabled = false;
+        say(`Could not enable controls: ${err instanceof Error ? err.message : String(err)}`);
+      },
+    );
+  }
+  enableBtn.addEventListener('click', enable);
+  $('#resume-btn').addEventListener('click', enable);
   render();
 }

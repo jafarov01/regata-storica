@@ -256,3 +256,86 @@
   bottom: calc(env(safe-area-inset-bottom) + 8vh);
   width: 24vw;
 }
+/* Full-screen states over the pads: sunk, results, resume, spectate. */
+.phone-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vh;
+  padding: 16px;
+  text-align: center;
+  background: color-mix(in srgb, var(--team) 35%, rgba(0, 0, 0, 0.88));
+}
+.phone-overlay .big {
+  font: 900 clamp(40px, 14vmin, 120px) var(--font);
+  letter-spacing: 0.06em;
+}
+.phone-overlay .count {
+  font-size: 1.4em;
+  color: var(--accent);
+}
+.phone-overlay .small {
+  font-size: 0.5em;
+  opacity: 0.7;
+}
+.phone-overlay.sunk {
+  background: rgba(10, 30, 45, 0.92);
+  pointer-events: none;
+}
+.phone-overlay.sunk .big {
+  color: #7fc4ff;
+}
+.phone-overlay.results,
+.phone-overlay.spectate {
+  pointer-events: none;
+}
+.phone-overlay.spectate {
+  font-size: 0.6em;
+}
+.back-lobby {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 8vh);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  font-size: 0.5em;
+}
+#rejoin {
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.5em;
+}
+.weapon {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 8vh);
+  right: 4vw;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  font-size: 0.7em;
+  letter-spacing: 0.06em;
+}
+.weapon:empty {
+  display: none;
+}
+.compass.on-target {
+  border-color: var(--danger);
+  box-shadow: 0 0 3vmin var(--danger);
+}
+.compass.locked {
+  outline: 1vmin solid var(--accent);
+  outline-offset: 1.5vmin;
+}
+.phone-root .zone.empty {
+  opacity: 0.45;
+}
+/* The role graphic picks its element from the role. */
+.role-view[data-role='pilot'] .wheel,
+.role-view[data-role='gunner'] .compass,
+.role-view[data-role='engineer'] .meter {
+  display: block;
+}

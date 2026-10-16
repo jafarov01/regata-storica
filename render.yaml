@@ -1,0 +1,12 @@
+# Backup host for the relay + built app (Render Blueprint). See docs/DEPLOY.md.
+services:
+  - type: web
+    name: gondola-royale
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
