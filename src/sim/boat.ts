@@ -135,7 +135,7 @@ export class Hull {
 
     // Steering: steer > 0 is right, positive angle turns left, so the torque is -steer.
     if (steer !== 0) {
-      const torque = BOAT.steerTorqueBase + BOAT.steerTorquePerSpeed * Math.min(Math.abs(vf), BOAT.topSpeed);
+      const torque = BOAT.steerTorqueBase * T.steerTorqueBaseMul + BOAT.steerTorquePerSpeed * Math.min(Math.abs(vf), BOAT.topSpeed);
       body.addTorque(-steer * torque * (drifting ? T.driftTurnMul : 1), true);
     }
     const w = body.angvel();

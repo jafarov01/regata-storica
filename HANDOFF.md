@@ -14,10 +14,10 @@ Updated 2026-10-16 (base phase finished). Read this first, then `ARCHITECTURE.md
 | Relay | Real, from the netcode research: rooms, reconnect, rate limits, SPA fallback, health | `server/` |
 | Net clients | Real: phone client, scene client, input hold and aim tracker, identity, QR, scanner | `src/net/` |
 | Phone | Real sensor stack from the sensors research; join, lobby, Enable controls; role screens follow the match phase: Pilot wheel + BRAKE/GAS, Gunner compass + RECENTER/FIRE (+ P1/P2 in teams of 2), Engineer two powers + water meter | `src/phone/` |
-| Sim | Real (Track B, B1-B10): Rapier boats, crates, Water Cannon / Cannon / Torpedo / Mortar, kills, sinking, respawn, protection, Shield, Mine, Boost and rams, bailing, sudden death, bots that play | `src/sim/` |
-| Scene | Real loop, layout, keyboard harness, phone HUD feed; baseline big-screen HUD | `src/scene/` |
+| Sim | Real (Track B, B1-B10, audited 2026-10-16: fixes listed in `docs/TASKS-B.md`): Rapier boats, crates, Water Cannon / Cannon / Torpedo / Mortar, kills, sinking, respawn, protection, Shield, Mine, Boost and rams, bailing, sudden death, bots that play (closed bot teams). Step: 0.04 ms mean with 4 bot teams | `src/sim/` |
+| Scene | Real loop, layout, keyboard harness, phone HUD feed and cues, big-screen HUD (per viewport, kill feed, minimap, kill-cam, host buttons and kick) | `src/scene/` |
 | Renderer | Placeholder behind the real `Renderer` interface: real viewports and camera rigs; block buildings, flat water, box boats | `src/render/index.ts` |
-| Tests | 59 passing: contracts, relay and rooms, sensor math and sender, baseline sim/layout/feed. `npm run check` green | `tests/`, `src/phone/sensorMath.test.ts` |
+| Tests | 93 passing: contracts, relay and rooms, sensor math and sender, baseline sim/layout/feed, gameplay (`tests/sim.test.ts`). `npm run check` green | `tests/`, `src/phone/sensorMath.test.ts` |
 | Research | All six write-ups final (netcode and render finished from their drafts), with code and every agent transcript | `docs/research/` |
 
 ## 2. Run it
@@ -32,7 +32,7 @@ npm run dev
 3. A desktop "phone": open `/play?room=CODE&sim=1` in another window, tap Enable controls, tap CALIBRATE, hold GAS, tilt with **A/D**.
 4. A real phone: `npm run tunnel` (needs `brew install cloudflared`), open the scene **on the tunnel URL** (so the QR carries https), scan the QR. Or set `VITE_PUBLIC_ORIGIN=https://<tunnel-host>` to keep the scene on localhost.
 
-Dev console on the scene: `gr.sim.state`, `gr.sim.debug.giveWeapon(0, 'cannon')`, `gr.hold.read('p1')`.
+Dev console on the scene: `gr.sim.state`, `gr.sim.debug.giveWeapon(0, 'cannon')`, `gr.sim.debug.givePower(0, 'boost')`, `gr.sim.debug.sink(1, 0)`, `gr.sim.debug.endPhase()` (skip the countdown, battle or results), `gr.hold.read('p1')`.
 
 ## 3. Next steps, in order
 
@@ -41,7 +41,7 @@ Dev console on the scene: `gr.sim.state`, `gr.sim.debug.giveWeapon(0, 'cannon')`
 **Together, first 20 minutes: Gate 1.** Tunnel, one iPhone and one Android: Enable controls, CALIBRATE, tilt, GAS, the boat turns on the TV. If motion fails, the phone says why (HTTPS, permission, no events). Then split:
 
 - **Track A (server/, src/net/, src/phone/, src/landing/)**: `docs/TASKS-A.md`. The plumbing is done; the work is the real phone screens and the on-device checks.
-- **Track B (src/sim/, src/scene/)**: `docs/TASKS-B.md`. Replace the placeholder sim with the research code (Rapier boat, teams, rules, items, projectiles, aim), then the HUD.
+- **Track B (src/sim/, src/scene/)**: `docs/TASKS-B.md`. B1-B10 are done and audited (the fixes are listed there); what is left is the Gate 2 playtest: feel, `PLAYTEST_TUNING`, then folding `TUNING.boat.steerTorqueBaseMul` into `shared/config.ts`.
 - **Track C (src/render/, public/assets/)**: `docs/TASKS-C.md`. Land the research renderer behind `Renderer` with an adapter, then assets per `docs/ASSETS.md`.
 
 `shared/` is read-only for agents. A contract change is agreed out loud and committed by one person, with `tests/` updated.
@@ -63,7 +63,9 @@ To pull a file out of a transcript: `grep -o '"name":"Write","input":{"file_path
 ## 5. Known gaps
 
 - Real phones are untested (Gate 1).
-- Steering may feel slow in the narrow canals: with `BOAT.steerTorqueBase` 900 the boat turns 0.27 rad/s at rest and 0.94 rad/s at 9 m/s (measured; the physics research used 0.5 and 1.3). First thing to tune at Gate 2.
+- Steering: `BOAT.steerTorqueBase` 900 alone turned the boat 0.27 rad/s at rest, too slow for the side canals. `TUNING.boat.steerTorqueBaseMul` (1.85, `src/sim/tuning.ts`) now gives the physics research's 0.5 rad/s at rest and about 1.15 rad/s at 8 m/s (measured). Still the first thing to feel at Gate 2; when it is settled, fold it into `shared/config.ts` (`steerTorqueBase` 1665) and set the multiplier to 1.
+- Phone screens decide the Gunner's power buttons from `lobby.teamSize` (`src/phone/main.ts` `hasPowers()`), so the Gunner of a 2-member crew in teams of 3 has no buttons although the sim and `Hud.hasPowers` now allow it. Track A: use `hud.hasPowers`.
+- The kill-cam ends (own sinking boat) when the killer sinks during it; freezing the killer's last pose instead, as the research did, is for the renderer (Track C).
 - The renderer is boxes; no assets in `public/assets/` yet.
 - The phone screens are functional, not designed: no wheel graphic, no compass needle, no Engineer meter.
 

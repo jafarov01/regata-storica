@@ -46,7 +46,8 @@ export class Weapons {
   private readonly pendingTaps = new Map<number, number>();
   private readonly streamUntil = new Map<number, number>();
   private readonly lastStreamCue = new Map<number, number>();
-  private readonly lastStreamHit = new Map<string, number>();
+  /** Keyed shooter * 8 + victim (numbers, so the stream allocates no strings per step). */
+  private readonly lastStreamHit = new Map<number, number>();
   /** Sim time each boat last took water from a stream. */
   private readonly soakedAt = new Map<number, number>();
   private readonly extra = new Map<number, ProjectileExtra>();
@@ -65,6 +66,8 @@ export class Weapons {
     this.lastShotAt.clear();
     this.pendingTaps.clear();
     this.streamUntil.clear();
+    this.lastStreamCue.clear();
+    this.lastStreamHit.clear();
     this.soakedAt.clear();
   }
 
@@ -82,9 +85,13 @@ export class Weapons {
 
   // ---------------------------------------------------------------- aim helpers
 
-  private enemies(team: number): number[] {
+  /** Reused by enemies(): the aim helpers run for every boat every step. Never nest two loops over it. */
+  private readonly enemyScratch: number[] = [];
+
+  private enemies(team: number): readonly number[] {
     const { state } = this.ctx;
-    const out: number[] = [];
+    const out = this.enemyScratch;
+    out.length = 0;
     for (const b of state.boats) if (b.team !== team && isTargetable(state, b.team) && !this.hidden(b.team)) out.push(b.team);
     return out;
   }
@@ -135,10 +142,15 @@ export class Weapons {
     return yaw + clamp(bestOff, -bend, bend);
   }
 
-  /** Enemy on the aim line: the cone widens for close boats so a hull filling the view still counts. */
+  private readonly facts: AimFacts = { underCrosshair: null, lock: null };
+
+  /** Enemy on the aim line: the cone widens for close boats so a hull filling the view still counts. Reuses one result object. */
   aimFacts(team: number): AimFacts {
     const me = this.ctx.state.boats[team];
-    if (!me) return { underCrosshair: null, lock: null };
+    const facts = this.facts;
+    facts.underCrosshair = null;
+    facts.lock = null;
+    if (!me) return facts;
     let under: number | null = null;
     let underD = Infinity;
     for (const e of this.enemies(team)) {
@@ -152,8 +164,9 @@ export class Weapons {
       under = e;
       underD = d;
     }
-    const lock = me.weapon === 'torpedo' ? this.nearestInCone(team, me.aimYaw, (AIM.torpedoLockConeDeg / 2) * DEG, AIM.torpedoLockRange, true) : null;
-    return { underCrosshair: under, lock };
+    facts.underCrosshair = under;
+    facts.lock = me.weapon === 'torpedo' ? this.nearestInCone(team, me.aimYaw, (AIM.torpedoLockConeDeg / 2) * DEG, AIM.torpedoLockRange, true) : null;
+    return facts;
   }
 
   /** Crosshair state and targets for the HUD, once per step. */
@@ -301,7 +314,7 @@ export class Weapons {
       this.ctx.hulls[b.team]?.push(f.x * WATER_CANNON.pushForce, f.z * WATER_CANNON.pushForce);
       b.water = Math.min(100, b.water + WATER_CANNON.fillPerSec * dt);
       this.soakedAt.set(b.team, t);
-      const key = `${team}>${b.team}`;
+      const key = team * 8 + b.team;
       if (t - (this.lastStreamHit.get(key) ?? -Infinity) >= TUNING.waterCannon.cueIntervalSec) {
         this.lastStreamHit.set(key, t);
         me.lastHitAt = t;

@@ -2,7 +2,7 @@
  * src/sim/ctx.ts: what the sim modules share. One object per sim, passed to
  * the rules, items, weapons and bot modules so none of them owns the state.
  */
-import { TEAM_COLOURS, WEAPONS } from '@shared/config.ts';
+import { TEAM_COLOURS, TIERS, WEAPONS } from '@shared/config.ts';
 import type { ParsedMap } from '@shared/map.ts';
 import type { BoatState, GameState, SimEvent, TeamState } from '@shared/state.ts';
 import type { Hull } from './boat.ts';
@@ -96,4 +96,18 @@ export function wipeBoat(boat: BoatState): void {
 /** Fighting phases: boats move, weapons fire, crates count. */
 export function isLive(state: GameState): boolean {
   return state.phase === 'battle' || state.phase === 'suddendeath';
+}
+
+/**
+ * The crew has an Engineer (SPEC section 2): three members with the Engineer
+ * tier on. Decided by the members actually aboard, not by the lobby's team
+ * size, because teams of 3 are balanced as 3 + 2 + 2.
+ */
+export function hasEngineer(state: GameState, team: number): boolean {
+  return TIERS.engineer && (state.teams[team]?.members.length ?? 0) >= 3;
+}
+
+/** Without an Engineer the Gunner also holds the two power buttons. */
+export function gunnerHasPowers(state: GameState, team: number): boolean {
+  return !hasEngineer(state, team);
 }

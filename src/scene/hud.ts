@@ -18,6 +18,7 @@
 import type { CameraView, Layout } from '@shared/api.ts';
 import { MINIMAP, POWERS, WEAPONS } from '@shared/config.ts';
 import type { ParsedMap } from '@shared/map.ts';
+import { wrapAngle } from '@shared/math.ts';
 import type { BoatState, GameState, KillCause, Role } from '@shared/state.ts';
 
 const ROLE_ICON: Record<Role, string> = { pilot: 'Pilot', gunner: 'Gunner', engineer: 'Engineer' };
@@ -225,7 +226,7 @@ export class SceneHud {
     const powers = boat.powers.map((p) => (p ? `<span class="power" data-power="${p}">${esc(POWERS[p].label)}</span>` : '<span class="power empty">empty</span>')).join('');
     const water = Math.round(boat.water);
     // Bow against the view: the camera looks along the aim, so the arrow turns by (bow - aim); positive = bow to the left.
-    const bowDeg = ((boat.pose.yaw - boat.aimYaw) * 180) / Math.PI;
+    const bowDeg = (wrapAngle(boat.pose.yaw - boat.aimYaw) * 180) / Math.PI;
     const timers: string[] = [];
     if (boat.status === 'alive' && boat.protectedUntil > now) timers.push(`<span class="protect">PROTECTED ${(boat.protectedUntil - now).toFixed(1)}</span>`);
     if (boat.status === 'alive' && boat.shieldUntil > now) timers.push(`<span class="shield">SHIELD ${Math.ceil(boat.shieldUntil - now)}</span>`);
@@ -275,7 +276,7 @@ export class SceneHud {
     const extras: string[] = [];
     if (r.topGunner) {
       const p = state.players[r.topGunner];
-      if (p) extras.push(`Top Gunner: <b>${esc(p.name)}</b> (${p.kills} kills)`);
+      if (p) extras.push(`Top Gunner: <b>${esc(p.name)}</b> (${p.kills - p.ramKills} kills)`);
     }
     if (r.bestRam) {
       const p = state.players[r.bestRam];

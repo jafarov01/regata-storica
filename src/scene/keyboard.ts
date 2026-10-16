@@ -9,6 +9,7 @@
  *   Space      fire                    P   pause      Esc  back to the lobby
  *   R          recenter aim
  *   Q / E      power slot 1 / 2        B   bail (hold)
+ *   (Q / E go to the Gunner when the crew has no Engineer.)
  *
  * Keys override a phone only while they are held; keyboard crews (virtual players)
  * get a packet every frame. Track B owns this file (docs/TASKS-B.md B13).
@@ -16,6 +17,7 @@
 import type { Sim } from '@shared/api.ts';
 import { KEYBOARD } from '@shared/config.ts';
 import type { InputMsg } from '@shared/protocol.ts';
+import { gunnerHasPowers } from '../sim/ctx.ts';
 
 export interface HarnessActions {
   start(): void;
@@ -127,7 +129,8 @@ export class KeyboardHarness {
     const turn = (this.held.has('ArrowLeft') ? 1 : 0) - (this.held.has('ArrowRight') ? 1 : 0);
     const dYaw = turn * KEYBOARD.aimRate * dt;
     this.yaw += dYaw;
-    const gunnerActive = this.any(GUNNER_KEYS) || this.recenter;
+    const gunnerPowers = gunnerHasPowers(this.sim.state, this.focus);
+    const gunnerActive = this.any(GUNNER_KEYS) || this.recenter || (gunnerPowers && (this.held.has('KeyQ') || this.held.has('KeyE')));
     if (gunnerId && gunnerId !== pilotId && (gunnerActive || this.wasActive.gunner || isVirtual(gunnerId))) {
       this.send(gunnerId, {
         t: 'in',
@@ -139,8 +142,9 @@ export class KeyboardHarness {
         fire: this.held.has('Space'),
         fc: this.fc,
         recenter: this.recenter,
-        use: this.sim.state.teamSize === 2 ? this.lastUse : null,
-        uc: this.sim.state.teamSize === 2 ? this.uc : 0,
+        // Without an Engineer aboard (teams of 2, or a 2-member team in teams of 3) Q/E go to the Gunner.
+        use: gunnerPowers ? this.lastUse : null,
+        uc: gunnerPowers ? this.uc : 0,
       });
     }
     this.recenter = false;

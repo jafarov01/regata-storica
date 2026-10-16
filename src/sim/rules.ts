@@ -214,9 +214,11 @@ export function computeResults(state: GameState, mem: MatchMemory, suddenDeath: 
   if (winnerFirst !== undefined) ranking = [winnerFirst, ...ranking.filter((t) => t !== winnerFirst)];
   let topGunner: string | null = null;
   let topKills = 0;
+  // Top Gunner counts shots and Mines; rams have their own award (best ram).
   for (const p of Object.values(state.players)) {
-    if (p.kills > topKills) {
-      topKills = p.kills;
+    const kills = p.kills - p.ramKills;
+    if (kills > topKills) {
+      topKills = kills;
       topGunner = p.id;
     }
   }

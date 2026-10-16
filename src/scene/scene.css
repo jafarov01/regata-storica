@@ -228,7 +228,10 @@
 }
 .kill-feed {
   position: absolute;
-  top: 2.6em;
+  /* Below the viewport labels (.tl / .tr at 3em, about 1.6em tall): at the centre seam of
+     2, 4 and 6 teams the feed would otherwise cover the right cell's team name. In this
+     element's own 0.8em font, 6.4em is 5.1em of the HUD font. */
+  top: 6.4em;
   left: 50%;
   transform: translateX(-50%);
   display: flex;

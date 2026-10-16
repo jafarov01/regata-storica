@@ -24,11 +24,11 @@ import type { BoatState, GameState, Phase, SimEvent } from '@shared/state.ts';
 import { AimTracker } from '../net/inputHold.ts';
 import { Hull, detectRam, type HullInput, type RamResult } from './boat.ts';
 import { Bots } from './bot.ts';
-import { isLive, wipeBoat, type SimCtx } from './ctx.ts';
+import { gunnerHasPowers, hasEngineer, isLive, wipeBoat, type SimCtx } from './ctx.ts';
 import { Crates, Powers, crateCategory, isFrenzy } from './items.ts';
 import { PhysicsWorld, initPhysics, type EntityRef } from './physics.ts';
 import { Roster } from './roster.ts';
-import { MatchMemory, computeResults, resolveHit, respawnBoat, sinkBoat, tiedLeaders, updateLife } from './rules.ts';
+import { MatchMemory, computeResults, endProtection, resolveHit, respawnBoat, sinkBoat, tiedLeaders, updateLife } from './rules.ts';
 import { TUNING } from './tuning.ts';
 import { buildStaticWorld } from './walls.ts';
 import { Weapons } from './weapons.ts';
@@ -237,6 +237,10 @@ export class GameSim implements Sim {
       }
       boat.status = 'out';
       boat.firing = false;
+      // Out is not sunk: no "SUNK by" or respawn countdown on the HUD and phones.
+      boat.killerTeam = null;
+      boat.killCause = null;
+      boat.respawnAt = 0;
       const hull = this.hulls[boat.team];
       hull?.setMode('off');
       hull?.setEnabled(false);
@@ -338,11 +342,15 @@ export class GameSim implements Sim {
     }
 
     let hasGunner = false;
+    const live = isLive(s);
     for (const id of team.members) {
       const input = this.inputs.get(id);
       if (!input) continue;
       if (input.role === 'pilot') {
-        frame.drive.steer = Number.isFinite(input.steer) ? input.steer : 0;
+        // Steering stays at zero until the Pilot's phone has calibrated (ARCHITECTURE 7.11).
+        const p = s.players[id];
+        const calibrated = !!p && (p.calibrated || p.virtual);
+        frame.drive.steer = calibrated && Number.isFinite(input.steer) ? input.steer : 0;
         frame.drive.gas = input.gas;
         frame.drive.brake = input.brake;
       } else if (input.role === 'gunner') {
@@ -352,12 +360,14 @@ export class GameSim implements Sim {
           tracker = new AimTracker();
           this.aims.set(id, tracker);
         }
-        const gain = boat.crosshair === 'enemy' ? AIM.gainUnderCrosshair : 1;
+        // The gain drops whenever an enemy is under the crosshair, also while a lock or hit shows.
+        const gain = boat.aimTarget !== null ? AIM.gainUnderCrosshair : 1;
         const aim = tracker.apply(input, boat.pose.yaw, gain);
         if (Number.isFinite(aim)) boat.aimYaw = wrapAngle(aim);
         frame.fireHeld = input.fire;
-        if (tracker.takeFireTap(input)) this.weapons.tap(boat.team);
-        if (s.teamSize === 2) this.takePowerTap(id, boat.team, input.uc, input.use);
+        // Taps are always consumed, but only count in a fight: a tap in the countdown is not a queued shot.
+        if (tracker.takeFireTap(input) && live) this.weapons.tap(boat.team);
+        if (gunnerHasPowers(s, boat.team)) this.takePowerTap(id, boat.team, input.uc, input.use);
       } else {
         frame.shake = Number.isFinite(input.shake) ? input.shake : 0;
         this.takePowerTap(id, boat.team, input.uc, input.use);
@@ -397,7 +407,10 @@ export class GameSim implements Sim {
     s.frenzy = isFrenzy(s);
 
     for (const boat of s.boats) {
-      boat.prevPose = { ...boat.pose };
+      // Copied field by field: no allocation per boat per step.
+      boat.prevPose.x = boat.pose.x;
+      boat.prevPose.z = boat.pose.z;
+      boat.prevPose.yaw = boat.pose.yaw;
       boat.prevAimYaw = boat.aimYaw;
       const frame = this.crew[boat.team];
       if (frame) this.readCrew(boat, frame);
@@ -456,11 +469,10 @@ export class GameSim implements Sim {
   /** Engineer shaking bails; teams without an Engineer (or with bailing cut) drain on their own. */
   private bail(boat: BoatState, frame: CrewFrame, dt: number): void {
     if (boat.water <= 0 || boat.status !== 'alive') return;
-    const members = this.state.teams[boat.team]?.members.length ?? 0;
-    const hasEngineer = TIERS.bailing && TIERS.engineer && members >= 3;
+    const bails = TIERS.bailing && hasEngineer(this.state, boat.team);
     // Nobody bails under the hose: auto-drain waits until the stream lets go.
-    if (!hasEngineer && this.weapons.soaking(boat.team)) return;
-    const rate = hasEngineer ? HULL.bailPerSecAtFullShake * Math.max(0, Math.min(1, frame.shake)) : HULL.autoDrainPerSec;
+    if (!bails && this.weapons.soaking(boat.team)) return;
+    const rate = bails ? HULL.bailPerSecAtFullShake * Math.max(0, Math.min(1, frame.shake)) : HULL.autoDrainPerSec;
     boat.water = Math.max(0, boat.water - rate * dt);
   }
 
@@ -477,6 +489,8 @@ export class GameSim implements Sim {
       const boostB = s.time < bb.boostUntil;
       if (!detectRam(this.phys, ha, hb, ca, cb, boostA, boostB, ramScratch)) return;
       const r = ramScratch;
+      // A boosted ram is an attack, like a lethal shot: it ends the rammer's spawn protection.
+      endProtection(this.ctx, r.rammer);
       const pilot = this.ctx.memberFor(r.rammer, 'pilot');
       const outcome = resolveHit(this.ctx, this.mem, r.target, { team: r.rammer, playerId: pilot, cause: 'ram' }, r.x, r.z, r.dx, r.dz);
       const lethal = outcome === 'sunk';
@@ -526,7 +540,13 @@ export class GameSim implements Sim {
 
   // ---------------------------------------------------------------- debug
 
-  readonly debug: Sim['debug'] = {
+  readonly debug: Sim['debug'] & {
+    /** End the current timed phase on the next step (countdown, battle -> sudden death or results, results). */
+    endPhase(): void;
+  } = {
+    endPhase: () => {
+      if (this.state.phaseEndsAt > 0) this.state.phaseEndsAt = this.state.time;
+    },
     giveWeapon: (team, weapon) => {
       const boat = this.state.boats[team];
       const def = WEAPONS[weapon as keyof typeof WEAPONS];
