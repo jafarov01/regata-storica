@@ -5,9 +5,9 @@ A browser party deathmatch for 4 to 18 people in one room. Teams crew armed gond
 - `SPEC.md`: the full game spec and hackathon plan (source of truth).
 - `HANDOFF.md`: current state of the repo, how to run it, what to do next. **Start here.**
 - `ARCHITECTURE.md`: how the parts fit, the conventions (coordinates, time, lost packets), module status, settled decisions.
-- `docs/TASKS-A.md`, `docs/TASKS-B.md`, `docs/TASKS-C.md`: one task list per track.
+- `docs/TASKS.md`: who does what. Three modules (phones & network, gameplay & HUD, graphics & assets), order of work, gates. Task lists: `docs/TASKS-A.md`, `docs/TASKS-B.md`, `docs/TASKS-C.md`.
 - `docs/CHALLENGES.md`: the hard parts and their solutions, with pointers into `docs/research/`.
-- `docs/ASSETS.md`: sounds to download and image prompts for ChatGPT / Gemini, with the filenames the code expects.
+- `docs/ASSETS.md`: every asset with its file name and a ready-to-paste prompt (images for ChatGPT / Gemini, sound effects for AI audio tools, or where to download).
 
 ## Quick start
 

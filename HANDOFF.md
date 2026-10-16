@@ -13,11 +13,11 @@ Updated 2026-10-16 (base phase finished). Read this first, then `ARCHITECTURE.md
 | Contracts | `config`, `state`, `protocol`, `api`, `map`, `math`. Protocol merged with the netcode research; boat mass settled; `BoatStatus 'out'` added | `shared/` |
 | Relay | Real, from the netcode research: rooms, reconnect, rate limits, SPA fallback, health | `server/` |
 | Net clients | Real: phone client, scene client, input hold and aim tracker, identity, QR, scanner | `src/net/` |
-| Phone | Real sensor stack from the sensors research; baseline join/lobby/pads shell | `src/phone/` |
-| Sim | Placeholder behind the real `Sim` interface: real roster, match flow, inputs, aim; kinematic boats; no weapons or kills yet | `src/sim/index.ts` |
+| Phone | Real sensor stack from the sensors research; join, lobby, Enable controls; role screens follow the match phase: Pilot wheel + BRAKE/GAS, Gunner compass + RECENTER/FIRE (+ P1/P2 in teams of 2), Engineer two powers + water meter | `src/phone/` |
+| Sim | Placeholder behind the real `Sim` interface: real roster, match flow, inputs, aim; kinematic boats; a placeholder Water Cannon (push and fill, never kills); no crates, kills or respawn yet | `src/sim/index.ts` |
 | Scene | Real loop, layout, keyboard harness, phone HUD feed; baseline big-screen HUD | `src/scene/` |
 | Renderer | Placeholder behind the real `Renderer` interface: real viewports and camera rigs; block buildings, flat water, box boats | `src/render/index.ts` |
-| Tests | 58 passing: contracts, relay and rooms, sensor math and sender, baseline sim/layout/feed. `npm run check` green | `tests/`, `src/phone/sensorMath.test.ts` |
+| Tests | 59 passing: contracts, relay and rooms, sensor math and sender, baseline sim/layout/feed. `npm run check` green | `tests/`, `src/phone/sensorMath.test.ts` |
 | Research | All six write-ups final (netcode and render finished from their drafts), with code and every agent transcript | `docs/research/` |
 
 ## 2. Run it
@@ -35,6 +35,8 @@ npm run dev
 Dev console on the scene: `gr.sim.state`, `gr.sim.debug.giveWeapon(0, 'cannon')`, `gr.hold.read('p1')`.
 
 ## 3. Next steps, in order
+
+**Who does what: [`docs/TASKS.md`](docs/TASKS.md)** (three modules, one per teammate, with the order of work and the gates).
 
 **Together, first 20 minutes: Gate 1.** Tunnel, one iPhone and one Android: Enable controls, CALIBRATE, tilt, GAS, the boat turns on the TV. If motion fails, the phone says why (HTTPS, permission, no events). Then split:
 

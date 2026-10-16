@@ -61,11 +61,14 @@ export function forwardEvents(state: GameState, events: readonly SimEvent[], sen
         if (e.phase === 'battle') send(null, { t: 'evt', kind: 'start' });
         break;
       case 'fired': {
+        // The Water Cannon is a stream (8 blobs/s): no haptic per blob.
+        if (e.weapon === 'watercannon') break;
         const gunner = crew(e.team)[1] ?? crew(e.team)[0];
         if (gunner) send(gunner, { t: 'evt', kind: 'fired' });
         break;
       }
       case 'hit':
+        if (e.cause === 'watercannon') break;
         for (const pid of crew(e.victim)) send(pid, { t: 'evt', kind: 'hit' });
         break;
       case 'sunk':

@@ -2,6 +2,14 @@
 
 Everything lives under `public/assets/`. The filenames below are the ones the code should load; keep them so Track C's loaders and the agents agree. Prefer CC0 sources (no attribution needed on the big screen).
 
+## How to generate (read first)
+
+- **Who:** Module 3 (Teammate C) owns `public/assets/`; anyone with a spare ChatGPT or Gemini window can generate in parallel and drop files in.
+- **Style line for every image**, append it to each prompt so the set looks like one game: *"golden-hour Venice, warm and slightly stylised, clean readable shapes, no text, no watermark, no people"* (drop "no text" for the logo).
+- **Sizes and format:** PNG; textures 1024x1024 unless stated; UI icons 512x512 with a transparent background. If the tool cannot do transparency, ask for a pure #00FF00 background and remove it (remove.bg, or Photoshop/Preview "instant alpha").
+- **Check before committing:** tiles have no seams (place two copies side by side), icons read at 64 px, file names exactly as below (the code loads these names).
+- **Priority:** Gate 2 needs nothing (the game runs on placeholders). For Gate 3: `sky.hdr`, the plaster/stone/water textures, the HUD icons and the sounds marked MVP first; logo and podium last.
+
 ## Sounds (download, CC0)
 
 Put them in `public/assets/sounds/`, OGG or MP3, mono, 44.1 kHz, trimmed, normalised to about -3 dB.
@@ -63,6 +71,40 @@ Save in `public/assets/ui/`.
 | `crosshair-neutral.png`, `crosshair-enemy.png`, `crosshair-lock.png` (alpha, 256x256) | "Flat white game crosshair on transparent background, thin ring with four short ticks" / "red diamond outline" / "double ring with four corner brackets", no text |
 | `podium-bg.png` (1920x1080) | "Venetian palace facade at golden hour with a red carpet dock and three wooden podium steps on the water, wide shot, warm light, no people, no text" |
 | `phone-bg-pilot.png` etc. (optional) | the phone screens use plain CSS in the team colour; images are not needed |
+
+## More images to generate
+
+| File | Where it goes | Prompt (paste as is, then the style line) |
+|---|---|---|
+| `public/favicon.png` (512x512, alpha) | browser tab and phone home screen | "Square app icon: a black Venetian gondola with a glowing golden lantern on a deep teal circle, bold simple shapes, flat vector style, transparent background" |
+| `ui/lobby-bg.jpg` (1920x1080) | behind the QR in the lobby | "Wide view of a Venetian canal at golden hour, gondolas moored, warm haze, soft focus, darker on the left third so white text on top stays readable" |
+| `ui/team-rosso.png` ... `team-arancio.png` (512x512, alpha) | lobby roster and results | "A Venetian pennant flag with a winged lion emblem, colour #e04a3a, flat vector style, transparent background" (repeat with the team hex: Azzurro #3a8fe0, Verde #3fbf5f, Oro #f2b544, Viola #9b5de5, Arancio #ff8a2a) |
+| `ui/sunk.png` (1024x512, alpha) | SUNK overlay on the big screen and phones | "The word SUNK in chunky wooden carnival letters, splashed with water, transparent background" (this one keeps its text) |
+| `textures/lantern-glow.png` (256x256, alpha) | glow sprite on bow lanterns and crates | "Soft round warm light glow, white centre fading to fully transparent edges, no hard rim, on a black background" (then use the brightness as alpha) |
+| `textures/foam.png` (tileable, 512x512) | wake foam behind boats | "Seamless tileable texture of white sea foam and bubbles on dark water, top-down, flat lighting" |
+| `textures/roof-tiles.png` (tileable) | building roofs | "Seamless tileable texture of old terracotta Venetian roof tiles, top-down orthographic, flat lighting" |
+| `textures/shutters-green.png` (512x1024, alpha) | instanced window shutters | "Pair of weathered green wooden Venetian shutters, open, front view, flat lighting, transparent background" |
+
+## Sound effects by prompt (alternative to downloading)
+
+If downloading takes too long, generate them with an AI sound-effect tool (for example ElevenLabs Sound Effects). Keep each under 3 s unless it is a loop; export OGG or MP3, mono.
+
+| File | Prompt |
+|---|---|
+| `cannon.ogg` (MVP) | "Old ship cannon firing, deep boom with a short wooden rattle, outdoors over water, 1.5 seconds" |
+| `water-cannon.ogg` (MVP) | "Strong water hose spraying in a steady stream, loopable, 2 seconds" |
+| `splash-small.ogg` (MVP) | "Cannonball dropping into a canal, single splash, 1 second" |
+| `explosion-water.ogg` (MVP) | "Underwater explosion lifting a column of water, then debris splashing down, 2.5 seconds" |
+| `pickup.ogg` (MVP) | "Cheerful wooden crate pickup chime, short and bright, 0.5 seconds" |
+| `horn.ogg` (MVP) | "Venetian ship horn, one long low blast, 2 seconds" |
+| `beep.ogg` (MVP) | "Single clean countdown beep, game UI, 0.3 seconds" |
+| `torpedo-launch.ogg` | "Torpedo launched from a small boat, mechanical thunk then bubbling whoosh, 1.5 seconds" |
+| `shield-up.ogg`, `shield-hit.ogg` | "Magical bubble shield powering up, shimmering hum, 1 second" / "Energy shield absorbing an impact, glassy zap, 0.8 seconds" |
+| `wood-bump.ogg` | "Wooden boat hull bumping a stone wall, dull knock and creak, 0.8 seconds" |
+| `water-lapping.ogg` | "Gentle canal water lapping against stone walls, calm, seamless loop, 20 seconds" |
+| `seagulls.ogg`, `bells-distant.ogg` | "Distant seagulls over a lagoon, sparse calls, 10 seconds" / "Distant Venetian church bells, two slow rings, 6 seconds" |
+| `lobby-loop.ogg` | "Light Italian accordion waltz, cheerful, seamless loop, 30 seconds" |
+| `win-fanfare.ogg` | "Short festive brass fanfare for a winner, 3 seconds" |
 
 ## Optional videos (Gemini Veo or ChatGPT Sora) for the lobby screen
 

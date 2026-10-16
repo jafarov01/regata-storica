@@ -116,3 +116,23 @@ describe('phone HUD feed', () => {
     expect(buildHud(sim.state, 'kb', false)).toBeNull();
   });
 });
+
+describe('placeholder water cannon', () => {
+  it('fires blobs along the aim while FIRE is held, and a tap fires at least once', () => {
+    const sim = createSim();
+    sim.addPlayer('a', 'A');
+    sim.addPlayer('b', 'B');
+    sim.start();
+    for (let i = 0; i < Math.round((MATCH.countdownSec + 0.1) / SIM.dt); i++) sim.step(SIM.dt);
+    const boat = sim.state.boats[0];
+    if (!boat) throw new Error('no boat');
+    // Aim along the bow (open water from a dock) and hold FIRE for 0.3 s.
+    for (let i = 0; i < 18; i++) {
+      sim.applyInput('b', { t: 'in', seq: i + 1, role: 'gunner', dYaw: 0, yaw: 0, ep: 0, fire: true, fc: 0, recenter: false, use: null, uc: 0 });
+      sim.step(SIM.dt);
+    }
+    const fired = sim.drainEvents().filter((e) => e.kind === 'fired');
+    expect(fired.length).toBeGreaterThanOrEqual(2);
+    expect(sim.state.projectiles.length).toBeGreaterThan(0);
+  });
+});

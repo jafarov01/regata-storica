@@ -24,6 +24,11 @@
   box-sizing: border-box;
 }
 
+/* The hidden attribute must win over any display rule (a .x { display: flex } beats the UA default). */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;

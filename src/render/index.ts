@@ -30,6 +30,7 @@ import {
   PlaneGeometry,
   Quaternion,
   Scene,
+  SphereGeometry,
   Vector3,
   WebGLRenderer,
 } from 'three';
@@ -125,6 +126,11 @@ export function createRenderer(canvas: HTMLCanvasElement, map: ParsedMap): Rende
   const crates = new InstancedMesh(new BoxGeometry(1.6, 1.6, 1.6), new MeshLambertMaterial(), 64);
   scene.add(crates);
 
+  // Projectiles (placeholder: water blobs and shells as light spheres).
+  const shots = new InstancedMesh(new SphereGeometry(0.45, 10, 8), new MeshStandardMaterial({ color: 0xbfe8ff, emissive: 0x4aa8ff, emissiveIntensity: 0.4 }), 128);
+  shots.count = 0;
+  scene.add(shots);
+
   // Boats: one per team, created on demand.
   const hullGeo = new BoxGeometry(BOAT.beam, 1, BOAT.length);
   const aimGeo = new BoxGeometry(0.15, 0.15, 12);
@@ -190,6 +196,15 @@ export function createRenderer(canvas: HTMLCanvasElement, map: ParsedMap): Rende
       crates.count = n;
       crates.instanceMatrix.needsUpdate = true;
       if (crates.instanceColor) crates.instanceColor.needsUpdate = true;
+
+      let k2 = 0;
+      for (const p of state.projectiles) {
+        if (k2 >= 128) break;
+        m.compose(tmp.set(lerp(p.prevX, p.x, alpha), p.y, lerp(p.prevZ, p.z, alpha)), q, new Vector3(1, 1, 1));
+        shots.setMatrixAt(k2++, m);
+      }
+      shots.count = k2;
+      shots.instanceMatrix.needsUpdate = true;
 
       renderer.setScissorTest(false);
       renderer.setClearColor(0x05101a, 1);

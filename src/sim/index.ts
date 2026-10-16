@@ -11,7 +11,7 @@
  * the scene and the renderer never notice.
  */
 import type { AddPlayerOptions, Sim } from '@shared/api.ts';
-import { AIM, BOAT, MATCH, SIM, TEAM_COLOURS, WEAPONS } from '@shared/config.ts';
+import { AIM, BOAT, MATCH, SIM, TEAM_COLOURS, WATER_CANNON, WEAPONS } from '@shared/config.ts';
 import { getMap, type ParsedMap } from '@shared/map.ts';
 import { clamp, wrapAngle, makeRng } from '@shared/math.ts';
 import type { GunnerIn, InputMsg, Lobby, LobbyMember, PhoneControl } from '@shared/protocol.ts';
@@ -75,6 +75,10 @@ export class GameSim implements Sim {
   private readonly joinOrder: string[] = [];
   private readonly rng = makeRng(1);
   private botCount = 0;
+  private nextProjectileId = 1;
+  /** Per team: sim time of the last water blob, and fire taps not yet shot. */
+  private readonly lastShotAt = new Map<number, number>();
+  private readonly pendingTaps = new Map<number, number>();
 
   constructor(map: ParsedMap = getMap()) {
     this.map = map;
@@ -483,7 +487,10 @@ export class GameSim implements Sim {
       boat.prevPose = { ...boat.pose };
       boat.prevAimYaw = boat.aimYaw;
       this.readCrew(boat);
-      if (moving) this.moveBoat(boat, dt);
+      if (moving) {
+        this.moveBoat(boat, dt);
+        this.fireWaterCannon(boat);
+      }
       else {
         boat.speed = 0;
         boat.vx = 0;
@@ -491,6 +498,8 @@ export class GameSim implements Sim {
       }
       if (boat.gas) boat.rowPhase = (boat.rowPhase + dt * 2) % 1;
     }
+    if (moving) this.moveProjectiles(dt);
+    else s.projectiles = [];
   }
 
   private runPhaseClock(): void {
@@ -531,6 +540,7 @@ export class GameSim implements Sim {
         const gain = boat.crosshair === 'enemy' ? AIM.gainUnderCrosshair : 1;
         boat.aimYaw = wrapAngle(tracker.apply(input, boat.pose.yaw, gain));
         boat.firing = input.fire;
+        if (tracker.takeFireTap(input)) this.pendingTaps.set(boat.team, (this.pendingTaps.get(boat.team) ?? 0) + 1);
       } else {
         boat.shake = input.shake;
       }
@@ -578,6 +588,59 @@ export class GameSim implements Sim {
   }
 
   // ---------------------------------------------------------------- bots
+
+  /**
+   * PLACEHOLDER Water Cannon (the default weapon): FIRE held, or a tap, sends blobs along the aim.
+   * Blobs push and fill enemy hulls, never kill. Replace with docs/research/physics projectiles (B6).
+   */
+  private fireWaterCannon(boat: BoatState): void {
+    const s = this.state;
+    const taps = this.pendingTaps.get(boat.team) ?? 0;
+    const last = this.lastShotAt.get(boat.team) ?? -1;
+    if (!(boat.firing || taps > 0) || s.time - last < 0.12 || boat.status !== 'alive') return;
+    this.lastShotAt.set(boat.team, s.time);
+    if (taps > 0) this.pendingTaps.set(boat.team, taps - 1);
+    const fx = -Math.sin(boat.aimYaw);
+    const fz = -Math.cos(boat.aimYaw);
+    const speed = 28;
+    const x = boat.pose.x + fx * 2;
+    const z = boat.pose.z + fz * 2;
+    s.projectiles.push({
+      id: this.nextProjectileId++, kind: 'cannon', team: boat.team, x, z, prevX: x, prevZ: z,
+      vx: fx * speed + boat.vx, vz: fz * speed + boat.vz, yaw: boat.aimYaw, y: 1.2,
+      targetX: 0, targetZ: 0, progress: 0, lockTarget: null, spawnedAt: s.time,
+    });
+    boat.lastFireAt = s.time;
+    this.emit({ kind: 'fired', team: boat.team, weapon: 'watercannon', x, z, yaw: boat.aimYaw });
+  }
+
+  private moveProjectiles(dt: number): void {
+    const s = this.state;
+    const life = WATER_CANNON.range / 28;
+    s.projectiles = s.projectiles.filter((p) => {
+      p.prevX = p.x;
+      p.prevZ = p.z;
+      p.x += p.vx * dt;
+      p.z += p.vz * dt;
+      p.progress = (s.time - p.spawnedAt) / life;
+      p.y = 1.2 - p.progress * 1.1;
+      if (p.progress >= 1 || !this.map.isWaterAt(p.x, p.z)) return false;
+      for (const victim of s.boats) {
+        if (victim.team === p.team || victim.status !== 'alive') continue;
+        if (Math.hypot(victim.pose.x - p.x, victim.pose.z - p.z) > 3) continue;
+        victim.water = Math.min(100, victim.water + WATER_CANNON.fillPerSec * 0.12);
+        const len = Math.hypot(p.vx, p.vz) || 1;
+        const nx = victim.pose.x + (p.vx / len) * 0.35;
+        const nz = victim.pose.z + (p.vz / len) * 0.35;
+        if (this.map.isWaterAt(nx, nz)) victim.pose = { ...victim.pose, x: nx, z: nz };
+        const shooter = s.boats[p.team];
+        if (shooter) shooter.lastHitAt = s.time;
+        this.emit({ kind: 'hit', team: p.team, victim: victim.team, cause: 'watercannon', x: p.x, z: p.z });
+        return false;
+      }
+      return true;
+    });
+  }
 
   private driveBots(): void {
     for (const p of Object.values(this.state.players)) {

@@ -1,26 +1,27 @@
-# TASKS-C: world and art
+# Module 3: Graphics, audio & assets (Teammate C)
 
-Owns `src/render/`, `public/assets/`, and the camera rigs (moved from Track B). Read `HANDOFF.md`, `ARCHITECTURE.md`, `shared/api.ts` (the `Renderer` interface and `Layout`), `shared/state.ts`, `shared/map.ts` first. Ready-made code: `docs/research/render/code/src/render`, `docs/research/render/code/src/scene`, `docs/research/render/code/tests` (buildings, camera, layout) and the render agent transcript `docs/research/_workflow/agent-a71c3c61ab65370a0.jsonl` (its draft write-up). Assets: `docs/ASSETS.md`.
+**Owns:** `src/render/`, `public/assets/`, and the camera rigs. **Reads:** `shared/api.ts` (the `Renderer` interface you implement), `shared/state.ts` (what you draw), `shared/map.ts` (walls, bridges, tower, piles, docks), `ARCHITECTURE.md`.
 
-Decide in the first hour: Mixamo GLB crew or code-built stylised crew. Recommendation from the research: code-built capsule characters with procedural animation for the hackathon; GLB as the upgrade path.
+**Already done (base):** `src/render/index.ts` implements `Renderer` with one WebGL renderer, scissor viewports, one camera per team (9 m back, 4 m up along the aim, level look), one shadow pass per frame. Everything visible is a placeholder: block buildings, flat water, box boats, sphere projectiles.
 
-## Base (with everyone)
+**Ready-made, tested code to lift:** `docs/research/render/code` (renderer, buildings, water, sky, gondola, crew, VFX, audio, perf, minimap; 19 tests) and its write-up `docs/research/render/final.md`. It uses its own state slice and yaw convention: write one adapter `GameState -> RenderState` at the top of `src/render/index.ts`; **research yaw = -PI/2 - repo yaw** (repo forward is `(-sin yaw, -cos yaw)`). Do not change `shared/`.
 
-- [x] C1 (placeholder in `src/render/index.ts`; next: land the research renderer behind it with a `GameState -> RenderState` adapter, research yaw = -PI/2 - repo yaw) `src/render/index.ts` implementing `Renderer`: one `WebGLRenderer`, scissor viewports from `Layout.cells`, one camera per `CameraView`, `autoClear` once per frame, DPR capped at 1, resize. Box boats and a flat grid. Done: two viewports show two moving boxes driven by the sim.
+**Assets:** every file name and a ready-to-paste prompt are in [`ASSETS.md`](ASSETS.md). Generated images go in `public/assets/textures/` and `public/assets/ui/`, sounds in `public/assets/sounds/`.
 
-## MVP (Gate 2)
+**Test:** `/scene`, press O three times and Enter: 4 bot teams in a 2x2 grid. Console: `gr.sim.debug.teleport(0, x, z, yaw)`, `gr.sim.debug.giveWeapon(0, 'cannon')`.
 
-- [ ] C2 World from the map (`src/render/world.ts`): building blocks from `map.walls` (3 to 5 floors, plaster colours, stone band and algae band at the waterline), merged per block; windows and shutters as `InstancedMesh`; bridges from `map.bridges` (arch generator, the covered bridge with a roof), the campanile at `map.tower`, mooring poles, pile clusters at `map.piles`, the lagoon edge as a breakwater.
-- [ ] C3 Water (`src/render/water.ts`): large plane, two scrolling normal maps, HDRI env reflection, dark green-teal, foam wake behind boats. No planar reflections.
-- [ ] C4 Sky and light (`src/render/sky.ts`): golden-hour HDRI via `RGBELoader` + `PMREMGenerator`, low sun `DirectionalLight` with one shadow pass per frame (`shadowMap.autoUpdate = false; needsUpdate = true` once per frame), hemisphere fill, ACES tone mapping, fog from `CAMERA.fogNear/fogFar`.
-- [ ] C5 Gondola (`src/render/boats.ts`): black asymmetric hull (lathe/extrude, bow along -z), ferro, trim and bow lantern in the team colour (emissive + sprite glow, no point lights), bob/roll/pitch from speed and steer, sits lower with hull water; sinking flip from `status === 'sinking'`.
-- [ ] C6 Crates with coloured lanterns, mines, cannonballs with the visual arc (`ProjectileState.y`), torpedo wake, spawn-protection bubble.
-- [ ] C7 Minimap (Canvas 2D) and the overview map in the spare cell (Canvas 2D, not a 5th 3D render).
+## MVP (by Gate 2)
 
-## Should (Gate 3)
+- [ ] **C1 Land the research renderer** behind `Renderer` with the adapter; keep the scissor viewports and camera behaviour. *Done when:* 4 viewports show the research world with the bots driving, at 60 fps on the scene PC.
+- [ ] **C2 Venice from the map.** Buildings from `map.walls` (3 to 5 floors, plaster colours, Istrian stone band, algae band at the waterline), instanced windows and shutters, bridges from `map.bridges` (the covered bridge with a roof), the campanile at `map.tower`, piles, mooring poles.
+- [ ] **C3 Water, sky and light.** Scrolling normal-map water (dark green-teal), golden-hour HDRI `sky.hdr`, low sun with one shadow pass, ACES tone mapping, fog from `CAMERA.fogNear/fogFar`. No planar reflections.
+- [ ] **C4 Gondola.** Black asymmetric hull with the ferro, team-colour trim and bow lantern (emissive + glow sprite, no point lights), bob/roll/pitch from speed and steer, sits lower with hull water, flips and sinks while `status === 'sinking'`, hidden while `respawning`.
+- [ ] **C5 Game objects.** Crates with red/blue lanterns (`state.crates`), projectiles with their arc (`ProjectileState.y`), Water Cannon stream, torpedo wake, mines, shield bubble (`shieldUntil`), spawn-protection bubble (`protectedUntil`).
 
-- [ ] C8 Crew (`src/render/crew.ts`): Pilot rowing at the stern (faster on GAS), Gunner at the swivel cannon turning with `aimYaw`, Engineer bailing on `shake`; lean into turns, flinch on hit, tumble on sinking, celebrate on the podium.
-- [ ] C9 VFX (`src/render/vfx.ts`): muzzle flash and smoke, splashes, explosion water column, wake foam, shield flash, respawn splash, firework bursts for the Mortar and the podium.
-- [ ] C10 Audio (`src/render/audio.ts`): `AudioListener` unlocked on the Start click; lapping water, bells, seagulls, cannon, splash, horn, lobby loop; driven by `SimEvent`s.
-- [ ] C11 Podium and results visuals.
-- [ ] C12 Performance pass with 4 viewports: instancing counts, merged blocks, LOD beyond 120 m, shadow map size, draw-call budget per viewport; cut order: draw distance, shadows, building detail.
+## Should (by Gate 3)
+
+- [ ] **C6 Generate and drop in the assets** from `ASSETS.md`: textures, UI icons (Module 2's HUD uses them), logo, lobby background; download the sounds and the HDRI. Check every tile for seams.
+- [ ] **C7 Audio.** `AudioListener` unlocked on the first click (`unlockAudio`), ambient loop, cannon, splash, explosion, pickup, horn at battle start, lobby loop; driven by `SimEvent`s passed to `render()`.
+- [ ] **C8 Crew.** Code-built characters (capsules) recommended: Pilot rows at the stern faster on GAS (`boat.gas`, `rowPhase`), Gunner turns with `aimYaw`, Engineer bails on `shake`; lean into turns, tumble on sinking.
+- [ ] **C9 VFX.** Muzzle flash and smoke (`fired`), splash (`splash`, misses), explosion water column (`hit`/`sunk`), wake foam, respawn splash, fireworks for the Mortar and the podium.
+- [ ] **C10 Performance pass and podium.** Quality presets, LOD beyond 120 m, draw calls per viewport (`renderer.info`), shadow map size; podium view on the results screen. Cut order if slow: draw distance, shadows, building detail.

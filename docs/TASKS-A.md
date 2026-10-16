@@ -1,35 +1,29 @@
-# TASKS-A: netcode and phones
+# Module 1: Phones & network (Teammate A)
 
-Owns `server/`, `src/net/`, `src/phone/`, `src/landing/`. Read `HANDOFF.md`, `ARCHITECTURE.md`, `shared/protocol.ts`, `shared/config.ts` (PHONE) first. The relay, net clients and the whole sensor stack are already landed from `docs/research/netcode` and `docs/research/sensors`; what is left is mostly the phone screens and on-device checks.
+**Owns:** `src/phone/`, `src/net/`, `src/landing/`, `server/`. **Reads:** `shared/protocol.ts` (what you send and receive), `shared/config.ts` (`PHONE`), `ARCHITECTURE.md` section 4.
 
-Each item: done when the observable result holds and `npm run check` passes. Add a two-line "how to test" to every merge.
+**Already done (base):** relay with rooms, reconnect, rate limits and SPA serving; phone and scene socket clients; the full sensor stack (iOS/Android permission flow, steering from gravity, gyro aim, shake, wake lock, desktop simulator); 30 Hz sender with running totals; join screen, lobby, Enable controls; role screens with wheel (Pilot), compass (Gunner), water meter (Engineer); one-line status strip. Research: `docs/research/sensors/final.md`, `docs/research/netcode/final.md`.
 
-## Base (with everyone)
+**Test without a phone:** `/play?room=CODE&sim=1` (A/D tilt, arrows turn, Space shake). Several desktop "phones" need different origins (localhost, 127.0.0.1, your LAN IP), because the player token lives in localStorage.
 
-- [x] A1 `server/index.ts`: express 5 serves `dist/` with an SPA fallback for `/scene` and `/play`, `/api/health`; Socket.IO on the same port with the typed event maps from `shared/protocol.ts`. Done: `npm start` serves the built app; `curl /api/health` returns ok.
-- [x] A2 `server/rooms.ts`: `host` creates a room (4-letter code from `NET.roomCodeAlphabet`, unique) or reclaims one; `hello` validates version and room, maps token -> playerId, re-attaches on reconnect, tells the scene `player:join`; forwards `in` (volatile) and `msg` to the scene with `playerId`; `to` and `hud` fan out to phones; room kept `NET.roomGraceSec` after the scene drops; per-socket input rate limit; `sanitizeInput` / `sanitizePhoneMsg` on every packet. Done: `tests/relay.test.ts` (in-process server, two clients) passes.
-- [x] A3 `src/net/sceneClient.ts` (scene) and `src/net/client.ts` (phone): typed `socket.io-client` wrappers, auto-reconnect, token in localStorage (`crypto.randomUUID`), scene room code in sessionStorage. Done: reload the scene tab and the phones stay in the room.
-- [ ] A4 `src/phone/main.ts`: read `?room=`, else the join screen (code field + `qr-scanner` fallback); lobby screen with nickname, team colour, role, Swap role, Move team, Ready, one big **Enable controls** button. Done: Gate 1 flow on a real iPhone through the tunnel. *Shell built and checked with `?sim=1`; the real-phone check is open.*
+## MVP (by Gate 2)
 
-## MVP (Gate 2)
+- [ ] **A1 Real-phone check (with everyone, first).** Tunnel, iPhone + Android: Enable controls, CALIBRATE, tilt steers the right way, Gunner turn direction matches the screen, shake registers. Fix signs in `sensors.ts` if needed. *Done when:* both phones drive and aim correctly; note the results in the merge message.
+- [ ] **A2 Invert-aim toggle and a lobby controls test.** A small toggle in the lobby (`saveInvertAim`), and after Enable controls show the role graphic in the lobby too so players can try steering before the match. *Done when:* the wheel turns in the lobby and the toggle flips the Gunner direction.
+- [ ] **A3 Gunner screen.** Big weapon name + ammo from `Hud.weapon` / `Hud.ammo`, red flash on hit (`Evt hit`), crosshair-on-target cue (`Hud.onTarget`, `Hud.locked`), RECENTER feedback. *Done when:* `gr.sim.debug.giveWeapon(0, 'cannon')` on the scene shows "CANNON 5" on the Gunner phone within 0.2 s.
+- [ ] **A4 Engineer screen.** The two buttons show the held powers (`Hud.powers`, greyed when empty), SHAKE TO BAIL prompt with the water meter when `Hud.bail`. *Done when:* a power appears on the button and tapping it sends `uc + 1` (check `gr.hold.read(pid)` on the scene).
+- [ ] **A5 Sunk and results screens.** `Hud.alive === false`: full-screen "SUNK by Azzurro" + countdown from `Hud.respawnIn`; `phase === 'results'`: final team score and "rematch coming". *Done when:* `gr.sim.debug.sink(0)` (once Module 2 has it) shows the sunk screen on every crew phone.
 
-- [x] A5 `src/phone/sensors.ts` (landed; verify sign and steering on a real iPhone and Android, add the Invert-aim toggle to the UI): permission flow (iOS `requestPermission` inside the tap, HTTPS check, 1.5 s watchdog with a clear error), platform sign normalisation, steering from gravity (dead zone 4 deg, full lock 35 deg, calibration), gyro yaw by projection onto gravity (dead zone 2 deg/s, gain 2, accumulated `dYaw`), shake peaks, orientation fallback, invert-aim toggle. Done: the vitest vectors from the sensors research pass; the desktop simulator drives the same code.
-- [x] A6 `src/phone/sender.ts` (landed, sends running totals: `yaw`/`ep`, `fc`, `uc`): 30 Hz loop with absolute scheduling, edge fields reset after each send, neutral packet + pause when the tab hides. Done: the relay sees 30 packets/s per phone, no bursts.
-- [ ] A7 Pilot screen: wheel graphic rotating with the tilt, GAS right half, BRAKE left half, CALIBRATE during the countdown, team kills, landscape overlay.
-- [ ] A8 Gunner screen: FIRE on the right two-thirds (tap and hold), RECENTER left, weapon and ammo, compass needle from `Hud.aimRel`, CALIBRATE; red flash on hit (iOS) or vibrate (Android).
-- [ ] A9 Wake lock (re-request on `visibilitychange`), fullscreen + orientation lock on Android, "rotate your phone" overlay, 100dvh layout, no zoom / pull-to-refresh / callouts.
-- [ ] A10 (QR, code and URL on the scene are done in `src/scene/hud.ts`) Landing page: PLAYER highlighted on phones (done), SCENE on desktop; the scene page shows the QR (`qrcode` in the browser, `joinUrl(location.origin, code)`), the code and the short URL.
+## Should (by Gate 3)
 
-## Should (Gate 3)
+- [ ] **A6 Resume after sleep or reload.** Phone locked 30 s, unlocked: back in the same slot within 5 s. After a page reload the controller needs a new tap (iOS rule): show one big "Tap to resume controls" instead of the lobby when a match is running.
+- [ ] **A7 Haptics and team look.** Android vibration on fire and hit, iOS red flash (`wake.ts haptic` is ready); team colour background, role name in large type; respect the "rotate your phone" overlay for Pilot and Gunner.
+- [ ] **A8 Join polish.** PLAYER highlighted on phones, the fallback scanner tested on iOS and Android, a clear error when the room code is wrong or the room is full.
+- [ ] **A9 Backup host.** Deploy the relay to Render (or Railway/Fly): `npm run build`, start command `npm start`, websockets on. Document the URL and `VITE_PUBLIC_ORIGIN` in `HANDOFF.md`. *Done when:* a phone joins a room on the hosted URL.
+- [ ] **A10 Stale-phone warning.** When `Hud.stale` is true show "the big screen can't hear you, check your connection"; test by turning wifi off for 3 s.
 
-- [ ] A11 Engineer screen: two power buttons, water meter, SHAKE TO BAIL prompt; the Gunner gets the power buttons in teams of 2 (`Hud.hasPowers`).
-- [ ] A12 Sunk and Results screens from `Hud` (`sunkBy`, `respawnIn`, `timeLeft`).
-- [ ] A13 Reconnect into the same slot after the phone slept; `Hud.stale` warning on the scene when a phone goes quiet.
-- [ ] A14 Haptics on fire and hit (Android), screen flash (iOS); phone background = team colour with the role in large type.
-- [ ] A15 Backup host: deploy the relay to Render/Railway/Fly (long-lived Node, websockets) with `npm start`; document the URL switch.
+## Day-one checks (SPEC.md section 14)
 
-## Day-one checks (risk list in SPEC.md section 14)
-
-1. iPhone through the tunnel: Enable controls -> motion events flow -> a box boat turns on the TV.
-2. Android phone: same, plus vibration.
-3. Lock the phone, unlock: it is back in the same slot within 5 s.
+1. iPhone through the tunnel: Enable controls, motion events flow, a boat turns on the TV.
+2. Android: same, plus vibration.
+3. Lock the phone and unlock: back in the same slot within 5 s.

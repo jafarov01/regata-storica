@@ -145,7 +145,7 @@ export class SceneHud {
       const rows = state.results.ranking
         .map((ti, rank) => {
           const t = state.teams[ti];
-          return t ? `<li style="--team:${t.colour}">${rank + 1}. ${esc(t.name)}: ${t.kills} kills, ${t.deaths} deaths</li>` : '';
+          return t ? `<li style="--team:${t.colour}">${esc(t.name)}: ${t.kills} kills, ${t.deaths} deaths${rank === 0 ? ' 🏆' : ''}</li>` : '';
         })
         .join('');
       centre = `<div class="results"><h2>${esc(state.teams[state.results.winner]?.name ?? '')} wins</h2><ol>${rows}</ol><p>Enter: rematch · Esc: new lobby</p></div>`;

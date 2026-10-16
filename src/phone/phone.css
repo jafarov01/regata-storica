@@ -98,3 +98,161 @@
   pointer-events: none;
   background: rgba(0, 0, 0, 0.35);
 }
+.phone-root .pads {
+  z-index: 1;
+}
+.phone-root .zone {
+  font-size: 1.1em;
+  letter-spacing: 0.06em;
+}
+.pads-pilot .zone-gas {
+  background: rgba(79, 196, 122, 0.18);
+}
+.pads-pilot .zone-brake {
+  background: rgba(224, 74, 58, 0.18);
+}
+.pads-gunner .zone-fire {
+  background: rgba(242, 181, 68, 0.16);
+}
+/* Role graphic over the pads: never takes touches. */
+.role-view {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vh;
+}
+.role-name {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom) + 5.5vh);
+  font-size: 0.8em;
+  opacity: 0.55;
+  letter-spacing: 0.3em;
+}
+.role-tip {
+  min-height: 1.2em;
+  font-size: 0.7em;
+  text-shadow: 0 1px 4px #000;
+}
+.wheel,
+.compass,
+.meter {
+  display: none;
+}
+[data-role='pilot'] .wheel,
+[data-role='gunner'] .compass,
+[data-role='engineer'] .meter {
+  display: block;
+}
+.wheel {
+  position: relative;
+  width: 42vmin;
+  height: 42vmin;
+  border: 2.4vmin solid #f4efe4;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0.6vmin rgba(0, 0, 0, 0.4);
+  transition: transform 40ms linear;
+}
+.wheel-spoke {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2vmin;
+  margin-left: -1vmin;
+  background: #f4efe4;
+}
+.wheel-spoke-2 {
+  transform: rotate(90deg);
+}
+.wheel-hub {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 4vmin;
+  height: 4vmin;
+  margin: -1vmin 0 0 -2vmin;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.compass {
+  position: relative;
+  width: 36vmin;
+  height: 36vmin;
+  border: 1.2vmin solid rgba(244, 239, 228, 0.85);
+  border-radius: 50%;
+}
+.compass .needle {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: 2vmin;
+  height: 42%;
+  margin-left: -1vmin;
+  background: var(--accent);
+  border-radius: 1vmin;
+  transform-origin: 50% 100%;
+}
+.compass .bow-mark {
+  position: absolute;
+  top: -1.4em;
+  width: 100%;
+  text-align: center;
+  font-size: 0.45em;
+}
+.meter {
+  position: relative;
+  width: 14vmin;
+  height: 40vmin;
+  border: 1vmin solid #f4efe4;
+  border-radius: 2vmin;
+  overflow: hidden;
+}
+.meter-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background: #3a8fe0;
+}
+.meter span {
+  position: absolute;
+  bottom: -1.6em;
+  width: 100%;
+  text-align: center;
+  font-size: 0.4em;
+}
+.phone-alert {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom) + 12vh);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  max-width: 86vw;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.75);
+  font-size: 0.55em;
+  text-align: center;
+  pointer-events: none;
+}
+/* Small pad buttons: below the top bar, never on top of each other. */
+.phone-root .zone.small {
+  top: calc(env(safe-area-inset-top) + 8vh);
+  background: rgba(0, 0, 0, 0.35);
+}
+.phone-root .zone.power-a {
+  top: auto;
+  bottom: calc(env(safe-area-inset-bottom) + 24vh);
+  width: 24vw;
+}
+.phone-root .zone.power-b {
+  top: auto;
+  bottom: calc(env(safe-area-inset-bottom) + 8vh);
+  width: 24vw;
+}
