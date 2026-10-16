@@ -499,11 +499,13 @@ export interface EnableControlsResult {
 }
 
 /**
- * The one-tap flow. Everything that needs the user gesture is started synchronously,
- * then awaited together. Call directly from the pointerup/click handler of the button.
+ * The one-tap flow. Everything that needs the user gesture is started synchronously
+ * (motion permission, then wake lock, then fullscreen), then awaited together.
+ * Call directly from the pointerup/click handler of the button.
  */
 export function enableControls(deps: EnableControlsDeps): Promise<EnableControlsResult> {
-  const fullscreen = deps.requestFullscreen().catch(() => false);
+  // Order matters: requestFullscreen() consumes the tap's user activation (Fullscreen spec), and
+  // the motion prompt needs that activation. Motion is the one that must work, so it asks first.
   // A permission prompt that never answers (desktop Chromium, embedded webviews) must not freeze the tap.
   const motion = Promise.race([
     requestMotionAccess(),
@@ -512,6 +514,7 @@ export function enableControls(deps: EnableControlsDeps): Promise<EnableControls
     ),
   ]);
   const wakeLock = deps.requestWakeLock().catch(() => false);
+  const fullscreen = deps.requestFullscreen().catch(() => false);
   return Promise.all([motion, wakeLock, fullscreen]).then(([m, w, f]) => ({ motion: m, wakeLock: w, fullscreen: f }));
 }
 

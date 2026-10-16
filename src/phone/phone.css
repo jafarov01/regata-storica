@@ -29,9 +29,10 @@
   width: min(80vw, 320px);
   border-radius: var(--radius);
 }
+/* The page background is the team colour (SPEC section 3), darkened just enough for white text. */
 .phone-root {
   --team: #333;
-  background: color-mix(in srgb, var(--team) 55%, #000);
+  background: color-mix(in srgb, var(--team) 72%, #000);
 }
 .phone-bar {
   position: absolute;
@@ -57,7 +58,29 @@
   justify-content: center;
   gap: 16px;
   padding: 48px 16px 16px;
-  background: color-mix(in srgb, var(--team) 55%, #000);
+  background: color-mix(in srgb, var(--team) 72%, #000);
+}
+/* Team and role in large type at the top of the lobby. */
+.lobby-seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.lobby-seat span {
+  font-size: 0.7em;
+  letter-spacing: 0.2em;
+  opacity: 0.85;
+}
+.lobby-seat b {
+  font: 900 clamp(40px, 13vmin, 96px) var(--font);
+  letter-spacing: 0.06em;
+}
+.join-msg {
+  min-height: 1.4em;
+  max-width: min(90vw, 420px);
+  color: var(--fg);
 }
 .phone-lobby .row {
   display: flex;
@@ -126,12 +149,24 @@
   justify-content: center;
   gap: 2vh;
 }
+/* Role name in large type across the top, between CALIBRATE (left) and the weapon label (right). */
 .role-name {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 5.5vh);
-  font-size: 0.8em;
-  opacity: 0.55;
-  letter-spacing: 0.3em;
+  top: calc(env(safe-area-inset-top) + 7vh);
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: 900 clamp(26px, 10vmin, 72px) var(--font);
+  letter-spacing: 0.12em;
+  opacity: 0.4;
+}
+/* Gunner: the compass sits in the middle of the FIRE pad (right two thirds), FIRE drops below it. */
+.role-view[data-role='gunner'] {
+  padding-left: 33.333%;
+}
+.pads-gunner .zone-fire {
+  align-items: flex-end;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 9vh);
 }
 .role-tip {
   min-height: 1.2em;
@@ -304,11 +339,6 @@
   z-index: 6;
   font-size: 0.5em;
 }
-#rejoin {
-  color: inherit;
-  text-decoration: none;
-  font-size: 0.5em;
-}
 .weapon {
   position: absolute;
   top: calc(env(safe-area-inset-top) + 8vh);
@@ -329,6 +359,47 @@
 .compass.locked {
   outline: 1vmin solid var(--accent);
   outline-offset: 1.5vmin;
+}
+/* Our shot landed: the ring pulses gold once. */
+.compass.landed {
+  animation: compass-landed 380ms ease-out;
+}
+@keyframes compass-landed {
+  from {
+    box-shadow: 0 0 0 0 var(--accent), 0 0 4vmin var(--accent);
+  }
+  to {
+    box-shadow: 0 0 0 4vmin rgba(242, 181, 68, 0), 0 0 0 transparent;
+  }
+}
+/* Blocking errors: wrong code, full room, kicked, another tab. Takes taps (its buttons). */
+.phone-overlay.blocked .big {
+  letter-spacing: 0.2em;
+}
+.blocked-text {
+  max-width: min(90vw, 520px);
+  font-size: 0.7em;
+}
+.phone-overlay.blocked .chip {
+  color: inherit;
+  text-decoration: none;
+}
+/* Fire and hit cue on iOS (no Vibration API): a full-screen layer over everything, never takes touches. */
+.phone-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.rotate-overlay small {
+  display: block;
+  margin-top: 0.6em;
+  font-size: 0.55em;
+  font-weight: 400;
+  opacity: 0.75;
+}
+.rotate-overlay > div {
+  text-align: center;
 }
 .phone-root .zone.empty {
   opacity: 0.45;

@@ -13,11 +13,11 @@ Updated 2026-10-16 (base phase finished). Read this first, then `ARCHITECTURE.md
 | Contracts | `config`, `state`, `protocol`, `api`, `map`, `math`. Protocol merged with the netcode research; boat mass settled; `BoatStatus 'out'` added | `shared/` |
 | Relay | Real, from the netcode research: rooms, reconnect, rate limits, SPA fallback, health | `server/` |
 | Net clients | Real: phone client, scene client, input hold and aim tracker, identity, QR, scanner | `src/net/` |
-| Phone | Real sensor stack from the sensors research; join, lobby, Enable controls; role screens follow the match phase: Pilot wheel + BRAKE/GAS, Gunner compass + RECENTER/FIRE (+ P1/P2 in teams of 2), Engineer two powers + water meter | `src/phone/` |
+| Phone | Real sensor stack from the sensors research; join (code checked against the relay), lobby with team and role in large type, Enable controls; role screens follow the match phase: Pilot wheel + BRAKE/GAS, Gunner compass + RECENTER/FIRE (+ P1/P2 in teams of 2), Engineer two powers + water meter; SUNK and results screens; team-colour background, haptics / red flash, rotate overlay; error panel for wrong code, full room, kicked, another tab; resume after reload or lock (code; real-phone test pending) | `src/phone/` |
 | Sim | Real (Track B, B1-B10, audited 2026-10-16: fixes listed in `docs/TASKS-B.md`): Rapier boats, crates, Water Cannon / Cannon / Torpedo / Mortar, kills, sinking, respawn, protection, Shield, Mine, Boost and rams, bailing, sudden death, bots that play (closed bot teams). Step: 0.04 ms mean with 4 bot teams | `src/sim/` |
 | Scene | Real loop, layout, keyboard harness, phone HUD feed and cues, big-screen HUD (per viewport, kill feed, minimap, kill-cam, host buttons and kick) | `src/scene/` |
 | Renderer | Placeholder behind the real `Renderer` interface: real viewports and camera rigs; block buildings, flat water, box boats | `src/render/index.ts` |
-| Tests | 93 passing: contracts, relay and rooms, sensor math and sender, baseline sim/layout/feed, gameplay (`tests/sim.test.ts`). `npm run check` green | `tests/`, `src/phone/sensorMath.test.ts` |
+| Tests | 119 passing: contracts, relay and rooms, sensor math and sender, phone screen logic, input hold tap counters, baseline sim/layout/feed, gameplay (`tests/sim.test.ts`). `npm run check` green | `tests/`, `src/phone/sensorMath.test.ts` |
 | Research | All six write-ups final (netcode and render finished from their drafts), with code and every agent transcript | `docs/research/` |
 
 ## 2. Run it
@@ -64,10 +64,10 @@ To pull a file out of a transcript: `grep -o '"name":"Write","input":{"file_path
 
 - Real phones are untested (Gate 1).
 - Steering: `BOAT.steerTorqueBase` 900 alone turned the boat 0.27 rad/s at rest, too slow for the side canals. `TUNING.boat.steerTorqueBaseMul` (1.85, `src/sim/tuning.ts`) now gives the physics research's 0.5 rad/s at rest and about 1.15 rad/s at 8 m/s (measured). Still the first thing to feel at Gate 2; when it is settled, fold it into `shared/config.ts` (`steerTorqueBase` 1665) and set the multiplier to 1.
-- Phone screens decide the Gunner's power buttons from `lobby.teamSize` (`src/phone/main.ts` `hasPowers()`), so the Gunner of a 2-member crew in teams of 3 has no buttons although the sim and `Hud.hasPowers` now allow it. Track A: use `hud.hasPowers`.
 - The kill-cam ends (own sinking boat) when the killer sinks during it; freezing the killer's last pose instead, as the research did, is for the renderer (Track C).
 - The renderer is boxes; no assets in `public/assets/` yet.
-- The phone screens are functional, not designed: no wheel graphic, no compass needle, no Engineer meter.
+- Phone screens have the wheel, compass needle and Engineer meter as CSS shapes, not drawn art. Vibration, the 30 s lock/unlock resume and the fallback scanner are written but untested on real phones.
+- Phones only learn the winner from the volatile `Evt win`, and the results screen shows only their own team's score: `Hud` has no scoreboard (a `shared/protocol.ts` change if wanted).
 
 ## 6. Prompt starter for an agent chat
 

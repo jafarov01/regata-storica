@@ -10,6 +10,7 @@ export class WakeLockKeeper {
 
   constructor(private readonly onState?: (held: boolean) => void) {
     document.addEventListener('visibilitychange', this.onVisibility);
+    window.addEventListener('pageshow', this.onVisibility);
   }
 
   /** navigator.wakeLock exists on Chrome 84+ and Safari 16.4+ (full on iOS 18.4+). */
@@ -47,10 +48,11 @@ export class WakeLockKeeper {
 
   dispose(): void {
     document.removeEventListener('visibilitychange', this.onVisibility);
+    window.removeEventListener('pageshow', this.onVisibility);
     void this.release();
   }
 
-  /** The browser drops the lock whenever the page is hidden; re-request on return. */
+  /** The browser drops the lock whenever the page is hidden (screen lock, app switch, bfcache); re-request on return. */
   private readonly onVisibility = (): void => {
     if (this.wanted && document.visibilityState === 'visible') void this.request();
   };
@@ -123,10 +125,15 @@ export function watchOrientation(cb: (info: OrientationInfo) => void): () => voi
 export type HapticKind = 'fire' | 'hit';
 
 const PATTERNS: Record<HapticKind, number | number[]> = { fire: 25, hit: [60, 40, 90] };
+/** Flash class per cue: a hit is a strong red, a shot only a short soft red so it does not read as damage. */
+const FLASH_CLASS: Record<HapticKind, string> = { fire: 'flash-red-soft', hit: 'flash-red' };
+const FLASH_MS: Record<HapticKind, number> = { fire: 120, hit: 260 };
 
 /**
  * Android: navigator.vibrate (needs a prior user gesture, which Enable controls gave us).
  * iOS: no Vibration API, so flash the given element red instead (the spec's fallback).
+ * `flashEl` should be a full-screen overlay above every other layer (pointer-events: none):
+ * an inset shadow on the page root is hidden by the pads and the sunk screen.
  */
 export function haptic(kind: HapticKind, flashEl: HTMLElement | null): void {
   let vibrated = false;
@@ -137,10 +144,23 @@ export function haptic(kind: HapticKind, flashEl: HTMLElement | null): void {
       vibrated = false;
     }
   }
-  if (!vibrated && flashEl !== null) flash(flashEl, kind === 'hit' ? 220 : 90);
+  if (!vibrated && flashEl !== null) flash(flashEl, FLASH_CLASS[kind], FLASH_MS[kind]);
 }
 
-function flash(el: HTMLElement, ms: number): void {
-  el.classList.add('flash-red');
-  window.setTimeout(() => el.classList.remove('flash-red'), ms);
+const flashTimers = new WeakMap<HTMLElement, number>();
+
+/** Restarts the animation on every call, so two hits in a row flash twice instead of once. */
+export function flash(el: HTMLElement, cls: string, ms: number): void {
+  const pending = flashTimers.get(el);
+  if (pending !== undefined) window.clearTimeout(pending);
+  el.classList.remove('flash-red', 'flash-red-soft', 'flash-gold');
+  void el.offsetWidth; // force a style flush so the re-added class restarts the animation
+  el.classList.add(cls);
+  flashTimers.set(
+    el,
+    window.setTimeout(() => {
+      el.classList.remove(cls);
+      flashTimers.delete(el);
+    }, ms),
+  );
 }

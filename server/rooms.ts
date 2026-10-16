@@ -35,6 +35,15 @@ export type JoinResult =
   | { ok: true; room: RoomRec; player: PlayerRec; rejoined: boolean; replacedSocketId: string | null }
   | { ok: false; code: ErrCode };
 
+/** What the join screen may know about a code before it opens the room (GET /api/rooms/:code). */
+export interface RoomProbe {
+  exists: boolean;
+  /** No seat for a new token (a returning token still gets its old slot). */
+  full: boolean;
+  /** A match is running: new tokens wait for the next lobby (or are refused with late 'reject'). */
+  locked: boolean;
+}
+
 export interface SweepResult {
   closedRooms: RoomRec[];
   expiredPlayers: Array<{ room: RoomRec; player: PlayerRec }>;
@@ -128,7 +137,18 @@ export class RoomRegistry {
 
   setGate(code: string, gate: Gate): void {
     const room = this.rooms.get(code);
-    if (room) room.gate = { ...gate, max: Math.min(gate.max, this.maxPlayers) };
+    if (!room) return;
+    room.gate = { ...gate, max: Math.min(gate.max, this.maxPlayers) };
+    // Back in the lobby the scene seats everyone it holds, so nobody is waiting any more.
+    // Without this a phone that joined mid-match is told "you join at the next lobby" on every rejoin.
+    if (!room.gate.locked) for (const p of room.players.values()) p.queued = false;
+  }
+
+  /** Read-only look at a code for the join screen. Never creates or changes anything. */
+  probe(code: string): RoomProbe {
+    const room = this.rooms.get(code);
+    if (!room) return { exists: false, full: false, locked: false };
+    return { exists: true, full: room.players.size >= room.gate.max, locked: room.gate.locked };
   }
 
   /**

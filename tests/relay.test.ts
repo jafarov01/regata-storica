@@ -247,6 +247,34 @@ describe('relay', () => {
     expect(await joinRoom(c, 'ZZZZ', 'token-cccc')).toMatchObject({ t: 'err', code: 'no_room' });
   });
 
+  it('a phone queued during a match is no longer queued once the scene unlocks the gate', async () => {
+    const scene = connect();
+    const p = connect();
+    await Promise.all([connected(scene), connected(p)]);
+    const { code } = await hostRoom(scene);
+    scene.emit('gate', { t: 'gate', max: 18, locked: true, late: 'queue' });
+    await sleep(20);
+    expect(await joinRoom(p, code, 'token-late')).toMatchObject({ t: 'welcome', queued: true });
+    scene.emit('gate', { t: 'gate', max: 18, locked: false, late: 'queue' });
+    await sleep(20);
+    // Rejoin after a lock/unlock of the phone: same slot, and not told to wait again.
+    expect(await joinRoom(p, code, 'token-late')).toMatchObject({ t: 'welcome', pid: 'p1', rejoined: true, queued: false });
+  });
+
+  it('a socket cannot be scene and phone at once', async () => {
+    const scene = connect();
+    const p = connect();
+    await Promise.all([connected(scene), connected(p)]);
+    const { code } = await hostRoom(scene);
+    expect(await joinRoom(scene, code, 'token-scene')).toMatchObject({ t: 'err', code: 'bad_hello' });
+    expect((await joinRoom(p, code, 'token-pppp')).t).toBe('welcome');
+    expect(await p.emitWithAck('host', { t: 'host', v: PROTOCOL_VERSION })).toMatchObject({ t: 'err', code: 'bad_hello' });
+    // The scene still owns its room and still gets inputs.
+    const got = next(scene, 'in');
+    p.emit('in', pilotIn(1));
+    expect((await got)[0]).toBe('p1');
+  });
+
   it('scene reload: phones see the big screen go away and come back, the room is re-claimed', async () => {
     const scene = connect();
     const p1 = connect();
