@@ -8,8 +8,9 @@
  *
  * Coordinate rules
  * ----------------
- * - 8 m per cell, 28 x 22 cells = 224 x 176 m (cut down from the 50 x 38 district on
- *   2026-10-16: a compact basin for crews of 2; lagoon east, covered bridge, side canals).
+ * - 8 m per cell, 30 x 24 cells = 240 x 192 m. A 2-wide ring canal round a central island, cut by
+ *   side canals that each join two canals, so no canal is a dead end (tests/map.test.ts checks
+ *   it: no water cell is a cut vertex); the lagoon fills the east with pile clusters.
  * - Metres, Three.js world frame, Y up, water surface at y = 0.
  * - Map origin at the centre: x = (col - W/2 + 0.5) * 8, z = (row - H/2 + 0.5) * 8.
  *   Row 0 is the far side (negative z); col 0 is the west side (negative x).
@@ -29,28 +30,30 @@
 export const CELL = 8;
 
 export const MAP_TEXT = `
-BBBBBBBBBBBBBBBBBBBBBBBBBBBB
-BBBBBBBBBB~~~SBBBBBBBLLLLLLB
-BBBBBBBBB~~~~~BBBBBBBLLCLLLB
-BBBBBBBB~~C~~BBBBBBBBLLLLLLB
-BBBBBBBS~~~~BBBBBBBBSLLLPLLB
-BCBBBB~~~~~~BBBBBBBB~LLLLLLB
-B~BBB~~~~~B~BBBBBBBB~LLLLLLB
-B~~~~~~~~BB~C~~~~~~~~LLCLLLB
-BBB~~~~~BBBBBBBBBB~BBSLLLLLB
-BBB~~C~BBBBBBBBBBB~BBLLLLLLB
-BB~~~~~BBBBBBBBBBB~BBLLLLCLB
-B~~~~~TBBBBBBBBBBB~BBLLLLLLB
-B~~~~~~~~~~RR~~~~~~~=LLLLLLB
-B~~~~~~C~~~RR~~~~~~~=LLPLLLB
-B~~~~~~~~~~RR~~~C~~~=LLLLLLB
-B~S~~~~~~~~RR~~S~~~~=LLLCLLB
-BBBB~BBB~BBBBBBBB~BBBLLLLLLB
-BBBB~BBB~BBBBBBBB~BBBLLLLLLB
-BBBB~BBB~BBBBBBBB~~~~LLLLCLB
-BS~~~BBB~~~~~BBBBBBBBLLLLLLB
-BBBBBBBBBBBB~~~~=~~~~LSLLLLB
-BBBBBBBBBBBBBBBBBBBBBBBBBBBB
+BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+BBBBBBBBBBBBBBBBBBBBBLLLLLLLLB
+BB~~~~S~~~~~~~~S~~~~~LLLLLLLLB
+BB~~~~~~~~~~C~~~~~~~~LLLLLLLLB
+BB~~BBB~BBBB~BBBBBBBBLLLCLLLLB
+BB~~BBB~BBBB=BBBBBBBBLLLLLLLLB
+BBS~BBB=BBBB~BBBBBBBBLLLLPLLLB
+BB~~BBB~BBBB~~C~=~~~~LLLLLLLLB
+BB~~BBBCBBBBCBBBBBBBBLLLLLLLLB
+BB~~BBB=BBBB=BBBBBBBBSLLLLLLLB
+BB~~BBB~BBBT~BBBBBBBBLLLLLLLLB
+BB~C~~~~~=~~~~~R~~C~~LLLLLLPLB
+BB~~~~C~~=~~~~~R~~~~~LLLLLCLLB
+BB~~BBBBBBBB~BBBB~BBBLLLLLLLLB
+BB~~BBBBBBBB=BBBBCBBBSLLLLLLLB
+BB~~BBBBBBBB~BBBB=BBBLLLLLLLLB
+BB~~~~=~C~=~CBBBB~BBBLLLLPLLLB
+BBS~BBBBBBBB~BBBB~BBBLLLLLLCLB
+BB~~BBBBBBBB=BBBB=BBBLLLLLLLLB
+BB~~BBBBBBBB~BBBB~BBBLLLLLLLLB
+BB~~~~~~~~~~C~~~~~~~~LLLCLPLLB
+BB~~~~S~~~~~~~~S~~~~~LLLLLLLLB
+BBBBBBBBBBBBBBBBBBBBBLLLLLLLLB
+BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
 `.trim();
 
 export type Cell = 'B' | '~' | '=' | 'R' | 'L' | 'S' | 'C' | 'T' | 'P';

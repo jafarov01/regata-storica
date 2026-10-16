@@ -4,7 +4,7 @@ import type { Renderer, RenderDebug } from '@shared/api.ts';
 import type { ParsedMap } from '@shared/map.ts';
 import { GameAudio } from './audio.ts';
 import { StateAdapter, interpolatedTime } from './state.ts';
-import { loadAssets } from './assets.ts';
+import { TEXTURE_COUNT, loadAssets } from './assets.ts';
 import { CameraRig } from './camera.ts';
 import { setupEnvironment } from './environment.ts';
 import { createGondolaAssets, GondolaView } from './gondola.ts';
@@ -23,7 +23,7 @@ export function createRenderer(canvas: HTMLCanvasElement, map: ParsedMap): Rende
   const assets = loadAssets(Math.min(8, renderer.capabilities.getMaxAnisotropy()), () => { renderer.shadowMap.needsUpdate = true; });
   const environment = setupEnvironment(renderer, scene);
   const water = createWater(assets.textures.normalA, assets.textures.normalB); scene.add(water.mesh);
-  const world = buildWorld(map, assets.textures); scene.add(world.group);
+  const world = buildWorld(map, assets.textures, assets.textures.lantern); scene.add(world.group);
   const gondolaAssets = createGondolaAssets(assets.glow);
   const objects = createObjects(assets.textures.crate); scene.add(objects.group);
   const adapter = new StateAdapter();
@@ -101,7 +101,7 @@ export function createRenderer(canvas: HTMLCanvasElement, map: ParsedMap): Rende
         frameMs += (Math.max(0.1, now - renderStart) - frameMs) * 0.1;
         if (now - lastStats > 250) {
           const count = Math.max(1, layout.cells.length);
-          stats.textContent = (1000 / frameInterval).toFixed(0) + ' fps | Render ' + frameMs.toFixed(1) + ' ms | ' + renderer.info.render.calls + ' calls (' + Math.round(renderer.info.render.calls / count) + '/view)\n' + renderer.info.render.triangles.toLocaleString() + ' triangles | ' + Object.values(assets.textures).filter(t => t.userData.loaded).length + '/13 assets loaded';
+          stats.textContent = (1000 / frameInterval).toFixed(0) + ' fps | Render ' + frameMs.toFixed(1) + ' ms | ' + renderer.info.render.calls + ' calls (' + Math.round(renderer.info.render.calls / count) + '/view)\n' + renderer.info.render.triangles.toLocaleString() + ' triangles | ' + Object.values(assets.textures).filter(t => t.userData.loaded).length + '/' + TEXTURE_COUNT + ' assets loaded';
           lastStats = now;
         }
       }

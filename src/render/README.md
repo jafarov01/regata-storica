@@ -4,6 +4,19 @@ The renderer now consumes the official `ParsedMap`, `GameState`, `Layout` and
 `CameraView` contracts. Research geometry, water, sky and camera ideas are adapted
 locally; no shared contracts, physics, networking or HUD files were changed.
 
+## Venice pass (2026-10-16)
+
+`world.ts` was rebuilt: every solid map cell belongs to a one- or two-cell house with its own
+floors, plaster texture and tint, gothic windows on each floor, a water door, a balcony, a wall
+lantern, laundry, a tiled hip roof with funnel chimneys; a third of the canal houses stand behind
+a stone quay with mooring poles, a lamp post and a moored gondola. Deeper cells are lower so roofs
+show behind the facades; the most sheltered 2 x 2 block carries a church dome; the T cell is the
+campanile. Bridges clear 5.1 m so the camera (4 m up) passes under them, and a one-cell bridge
+takes its orientation from the banks. Everything static is merged into one mesh per material
+(`Bucket`), lantern glows are one `Points` cloud. The sky is a painted dome (`environment.ts`
+`buildSkyDome`): the HDRI stays as environment lighting only, because its photographed horizon
+showed trees and roofs above our houses.
+
 ## Included
 
 - Venetian buildings, masonry/algae bands, alpha-cut windows and laundry, docks,

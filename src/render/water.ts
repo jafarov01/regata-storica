@@ -21,14 +21,14 @@ import {
 } from 'three';
 
 export const WATER = {
-  size: 1400, // m; reaches well past the fog on every side of the 400 x 300 map
-  color: 0x0f3b38, // dark green-teal
-  roughness: 0.22,
-  tileA: 9, // m per normal-map tile, layer A
-  tileB: 3.3, // m per tile, layer B
-  flowA: new Vector2(0.018, 0.011), // tiles per second
-  flowB: new Vector2(-0.025, 0.02),
-  normalScale: 0.55,
+  size: 1400, // m; reaches well past the fog on every side of the map
+  color: 0x0e3b39, // dark green-teal
+  roughness: 0.18,
+  tileA: 17, // m per normal-map tile, layer A: long swells
+  tileB: 6.2, // m per tile, layer B: ripples
+  flowA: new Vector2(0.012, 0.008), // tiles per second
+  flowB: new Vector2(-0.02, 0.016),
+  normalScale: 0.4,
 } as const;
 
 export interface WaterSurface {

@@ -7,7 +7,7 @@ import type { GameState } from '@shared/state.ts';
 import { createSim } from '../sim/index.ts';
 import { StateAdapter, interpolatedTime, researchYaw } from './state.ts';
 import { CameraRig, clampCamera } from './camera.ts';
-import { buildingBlocks, buildBridge } from './world.ts';
+import { partition, buildBridge } from './world.ts';
 import { MeshStandardMaterial } from 'three';
 import { InstancePool } from './objects.ts';
 import { GondolaView, createGondolaAssets } from './gondola.ts';
@@ -79,12 +79,18 @@ describe('Track C state adapter', () => {
 });
 
 describe('Track C map and camera integration', () => {
-  it('covers every B cell exactly once and never builds a facade over the tower', () => {
+  it('covers every B cell with exactly one house, never the tower, and marks canal houses', () => {
     const map = getMap(), seen = new Set<string>();
-    for (const b of buildingBlocks(map)) for (let r = b.row; r < b.row + b.rows; r++) for (let c = b.col; c < b.col + b.cols; c++) {
+    const houses = partition(map);
+    for (const h of houses) for (let r = h.r0; r < h.r0 + h.rows; r++) for (let c = h.c0; c < h.c0 + h.cols; c++) {
       expect(map.cellAt(c, r)).toBe('B'); expect(seen.has(`${c},${r}`)).toBe(false); seen.add(`${c},${r}`);
     }
     expect(seen.size).toBe(map.rows.join('').split('').filter(c => c === 'B').length);
+    expect(houses.filter(h => h.church)).toHaveLength(1);
+    for (const h of houses) {
+      const facing = h.water.n || h.water.s || h.water.w || h.water.e;
+      expect(facing).toBe(h.depth === 1);
+    }
   });
   it('builds bridge geometry to official cell-derived dimensions', () => {
     const material = new MeshStandardMaterial();
@@ -114,10 +120,10 @@ describe('Track C map and camera integration', () => {
   });
   it('stops camera motion before a map wall', () => {
     const map = getMap();
-    // From the lagoon toward the east border wall (x >= 104).
-    const safe = clampCamera(map, 92, 12, 114, 12);
+    // From the lagoon toward the east border wall (x >= 112).
+    const safe = clampCamera(map, 92, 12, 122, 12);
     expect(map.isWaterAt(safe.x, safe.z)).toBe(true);
-    expect(safe.x).toBeLessThan(104);
+    expect(safe.x).toBeLessThan(112);
   });
 });
 

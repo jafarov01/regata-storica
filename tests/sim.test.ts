@@ -11,7 +11,7 @@ import { createSim, type GameSim } from '../src/sim/index.ts';
 import { LobbySync, buildHud, forwardEvents } from '../src/scene/phoneFeed.ts';
 import { CameraViews } from '../src/scene/views.ts';
 
-/** Lagoon water, clear of walls, piles and crates: column 22 of the compact map, z -60..64. */
+/** Lagoon water, clear of walls, piles and crates: column 23 of the loop map (x = 68), z -80..80. */
 const OPEN = { x: 68, z: 12 };
 
 function steps(sim: GameSim, seconds: number, each?: () => void): void {
@@ -75,7 +75,7 @@ describe('B1 Rapier boats', () => {
     sim.debug.teleport(0, OPEN.x, 64, 0);
     steps(sim, 3, () => sim.applyInput('p0', pilot(0, true)));
     expect(boat(sim, 0).speed).toBeGreaterThan(BOAT.topSpeed * 0.8);
-    sim.debug.teleport(0, -92, 28, -Math.PI / 2); // the wide east-west canal (row 14), facing +x
+    sim.debug.teleport(0, OPEN.x, 76, 0); // the full length of the lagoon ahead, facing -z
     steps(sim, 8, () => sim.applyInput('p0', pilot(0, true)));
     expect(boat(sim, 0).speed).toBeGreaterThan(BOAT.topSpeed * 0.95);
     expect(boat(sim, 0).speed).toBeLessThan(BOAT.topSpeed * 1.02);

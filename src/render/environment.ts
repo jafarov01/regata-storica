@@ -7,16 +7,21 @@
  */
 import {
   ACESFilmicToneMapping,
+  BackSide,
   Color,
   DataUtils,
   DirectionalLight,
   EquirectangularReflectionMapping,
+  Float32BufferAttribute,
   Fog,
   HemisphereLight,
   LinearSRGBColorSpace,
   MathUtils,
+  Mesh,
+  MeshBasicMaterial,
   PMREMGenerator,
   Scene,
+  SphereGeometry,
   Vector3,
   type DataTexture,
   type Material,
@@ -29,16 +34,21 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 
 export const LIGHT = {
-  sunElevationDeg: 14, // low golden-hour sun; long shadows across the canals
+  sunElevationDeg: 17, // low golden-hour sun; long shadows across the canals
   sunAzimuthDeg: 215, // from the south-west
-  sunIntensity: 2.6, // physically based units (lux-ish); ACES exposure below balances it
-  exposure: 0.95,
-  envIntensity: 0.7,
-  fogColor: 0xe7c9a3, // warm haze, close to the HDRI horizon; refined by fogColorFromHdri()
+  sunIntensity: 2.3, // physically based units (lux-ish); ACES exposure below balances it
+  exposure: 0.88,
+  envIntensity: 0.55,
+  fogColor: 0xe9c9a0, // warm haze, the colour of the sky dome at the horizon
+  /** The painted sky dome: horizon, a band above it, the zenith, and the glow round the sun. */
+  skyHorizon: 0xf3cf9c,
+  skyBand: 0xe3a98c,
+  skyZenith: 0x5f8fcf,
+  sunGlow: 0xffd9a0,
   fogNear: CAMERA.fogNear,
   fogFar: CAMERA.fogFar,
   shadowMapSize: 2048,
-  shadowExtent: 260, // half-size of the orthographic shadow box: covers the 500 m map diagonal
+  shadowExtent: 170, // half-size of the orthographic shadow box: covers the 240 x 192 m map and its edge
 } as const;
 
 export interface Environment {
@@ -80,8 +90,10 @@ export function setupEnvironment(renderer: WebGLRenderer, scene: Scene, mapCentr
   let envRT: WebGLRenderTarget | null = pmrem.fromScene(skyScene, 0.04);
   scene.environment = envRT.texture;
   scene.environmentIntensity = LIGHT.envIntensity;
-  scene.background = envRT.texture; // CubeUV PMREM as background is supported by WebGLBackground
-  scene.backgroundIntensity = 1.0;
+  // The background is a painted dome, not the HDRI: a photo horizon shows its own trees and
+  // roofs above our houses. The dome ignores the fog (the fog colour is its horizon colour).
+  const dome = buildSkyDome(dir);
+  scene.add(dome);
   skyScene.remove(sky);
   sky.geometry.dispose();
   sky.material.dispose();
@@ -122,10 +134,7 @@ export function setupEnvironment(renderer: WebGLRenderer, scene: Scene, mapCentr
         if (disposed) { tex.dispose(); return false; }
         tex.mapping = EquirectangularReflectionMapping;
         const rt = pmrem.fromEquirectangular(tex);
-        if (scene.fog instanceof Fog) scene.fog.color.copy(fogColorFromHdri(tex));
         scene.environment = rt.texture;
-        scene.background = rt.texture;
-        scene.backgroundBlurriness = 0; // sharp sky; raise toward 0.1 for a dreamier look
         envRT?.dispose();
         envRT = rt;
         hdrTexture?.dispose();
@@ -140,6 +149,9 @@ export function setupEnvironment(renderer: WebGLRenderer, scene: Scene, mapCentr
       disposed = true;
       scene.environment = null;
       scene.background = null;
+      scene.remove(dome);
+      dome.geometry.dispose();
+      (dome.material as MeshBasicMaterial).dispose();
       envRT?.dispose();
       hdrTexture?.dispose();
       pmrem.dispose();
@@ -147,6 +159,44 @@ export function setupEnvironment(renderer: WebGLRenderer, scene: Scene, mapCentr
       hemi.dispose();
     },
   };
+}
+
+/**
+ * A vertex-coloured dome: warm at the horizon, a rosy band above it, blue at the zenith, and a
+ * glow round the sun. Drawn inside the far plane with no fog and no tone mapping surprises.
+ */
+export function buildSkyDome(sunDir: Vector3): Mesh {
+  // Inside the far plane from anywhere on the map (the camera stays within about 130 m of the origin).
+  const geo = new SphereGeometry(150, 48, 24);
+  const pos = geo.getAttribute('position');
+  const colours = new Float32Array(pos.count * 3);
+  const horizon = new Color(LIGHT.skyHorizon);
+  const band = new Color(LIGHT.skyBand);
+  const zenith = new Color(LIGHT.skyZenith);
+  const glow = new Color(LIGHT.sunGlow);
+  const c = new Color();
+  const v = new Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+    const h = Math.max(0, v.y); // 0 at the horizon, 1 straight up
+    // Horizon -> band in the first 12 degrees, band -> zenith above.
+    if (h < 0.2) c.copy(horizon).lerp(band, Math.pow(h / 0.2, 0.8));
+    else c.copy(band).lerp(zenith, Math.pow((h - 0.2) / 0.8, 0.6));
+    const toSun = Math.max(0, v.dot(sunDir));
+    c.lerp(glow, Math.pow(toSun, 14) * 0.9 + Math.pow(toSun, 3) * 0.18);
+    // Below the horizon the water hides the dome; keep the horizon colour there.
+    if (v.y < 0) c.copy(horizon);
+    colours[i * 3] = c.r;
+    colours[i * 3 + 1] = c.g;
+    colours[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('color', new Float32BufferAttribute(colours, 3));
+  const mat = new MeshBasicMaterial({ vertexColors: true, side: BackSide, fog: false, depthWrite: false });
+  const dome = new Mesh(geo, mat);
+  dome.name = 'sky';
+  dome.renderOrder = -1;
+  dome.frustumCulled = false;
+  return dome;
 }
 
 function setUniform(uniforms: Record<string, { value: unknown }>, name: string, value: number): void {

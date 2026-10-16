@@ -4,9 +4,9 @@ import { CELL, dirFromYaw, getMap, parseMap, reachableWaterCells, yawFromDir } f
 const map = getMap();
 
 describe('map grid', () => {
-  it('is 28 x 22 cells of 8 m (224 x 176 m) with a solid border', () => {
-    expect(map.width).toBe(28);
-    expect(map.height).toBe(22);
+  it('is 30 x 24 cells of 8 m (240 x 192 m) with a solid border', () => {
+    expect(map.width).toBe(30);
+    expect(map.height).toBe(24);
     expect(map.cell).toBe(CELL);
     for (let c = 0; c < map.width; c++) {
       expect(map.cellAt(c, 0)).toBe('B');
@@ -18,6 +18,31 @@ describe('map grid', () => {
     }
   });
 
+  it('has no dead ends: every canal joins two others (no water cell is a cut vertex)', () => {
+    const cells: { col: number; row: number }[] = [];
+    for (let r = 0; r < map.height; r++) for (let c = 0; c < map.width; c++) if (map.isWater(c, r)) cells.push({ col: c, row: r });
+    const total = cells.length;
+    const reachWithout = (skip: { col: number; row: number }): number => {
+      const start = cells.find((x) => x !== skip);
+      if (!start) return 0;
+      const seen = new Set<number>([start.row * map.width + start.col]);
+      const stack = [start];
+      while (stack.length) {
+        const cur = stack.pop() as { col: number; row: number };
+        for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const col = cur.col + dc;
+          const row = cur.row + dr;
+          if ((col === skip.col && row === skip.row) || !map.isWater(col, row) || seen.has(row * map.width + col)) continue;
+          seen.add(row * map.width + col);
+          stack.push({ col, row });
+        }
+      }
+      return seen.size;
+    };
+    const deadEnds = cells.filter((cell) => reachWithout(cell) !== total - 1);
+    expect(deadEnds).toEqual([]);
+  });
+
   it('has one connected water region', () => {
     const first = map.docks[0];
     expect(first).toBeDefined();
@@ -25,10 +50,10 @@ describe('map grid', () => {
     expect(reachableWaterCells(map, first.col, first.row)).toBe(map.waterCellCount);
   });
 
-  it('has the compact counts: 8 docks, 11 crates, 2 arch bridges + 1 covered, 1 tower', () => {
+  it('has the loop-map counts: 8 docks, 15 crates, 12 arch bridges + 1 covered, 1 tower', () => {
     expect(map.docks).toHaveLength(8);
-    expect(map.crates).toHaveLength(11);
-    expect(map.bridges.filter((b) => !b.covered)).toHaveLength(2);
+    expect(map.crates).toHaveLength(15);
+    expect(map.bridges.filter((b) => !b.covered)).toHaveLength(12);
     expect(map.bridges.filter((b) => b.covered)).toHaveLength(1);
     expect(map.tower).not.toBeNull();
     expect(map.piles.length).toBeGreaterThan(0);
