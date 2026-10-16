@@ -1,85 +1,206 @@
 /**
  * shared/protocol.ts: every message between phones, the relay and the scene.
  *
- * CONTRACT FILE. The relay (server/) only understands `host`, `hello`, `in`,
- * `msg`, `to` and `hud`; it routes by room code and never reads game fields.
+ * CONTRACT FILE. Transport and relay parts come from the netcode research
+ * (docs/research/netcode/final.md, tested by tests/relay.test.ts and
+ * tests/rooms.test.ts); the game payloads (Hud, Evt, Lobby) are what the
+ * phone screens draw.
  *
- *   phone --in/msg-->  relay --player:in/player:msg-->  scene
- *   scene --to/hud-->  relay --msg/hud-->               phone(s)
+ *   phone  --in / swap / ready / calibrate / rename / leave-->  relay  --(pid, msg)-->  scene
+ *   scene  --hud / evt / lobby / gate / kick-->                 relay  --msg-->         phone(s)
  *
- * Inputs flow at 30 Hz as volatile packets (a lost packet is replaced by the
- * next one; the sim holds the last input). Everything else is reliable.
- * Every message carries `v` only on the first hop (hello/host); the relay
- * rejects mismatched versions so an old phone tab cannot join a new build.
+ * Rules every file in src/net and server/ follows:
+ *   - The relay routes by room code and player id. It never reads game fields.
+ *   - Every message object carries `t` (its type) so logs and tests can tell them apart.
+ *   - Inputs flow at 30 Hz, volatile from the phone. Ordering comes from `seq`.
+ *     Everything a lost packet could break is sent as a running total instead
+ *     of an edge: Gunner `yaw` + `ep` (aim), `fc` (fire taps), `uc` (power taps).
+ *   - HUD is a full snapshot at 10 Hz per player; the roster is sent on change.
+ *   - `v` is sent once per connection (socket.io `auth`) and inside `hello`/`host`;
+ *     the relay rejects other versions so an old phone tab cannot join a new build.
+ *
+ * The parsers at the bottom are the only place that validates untrusted phone input.
  */
-import type { PowerId, WeaponId } from './config.ts';
+import { PHONE, type PowerId, type WeaponId } from './config.ts';
 import type { Phase, Role } from './state.ts';
 
-export const PROTOCOL_VERSION = 1;
+export type { Phase, Role } from './state.ts';
+
+export const PROTOCOL_VERSION = 1 as const;
+export type ProtocolVersion = typeof PROTOCOL_VERSION;
+
+/** Wire tunables both ends must agree on. Game tuning lives in shared/config.ts. */
+export const NET = {
+  /** Phones send one input packet every 1000/30 ms, not one per sensor event. */
+  inputHz: PHONE.inputHz,
+  /** The scene sends one HUD snapshot per player at this rate. */
+  hudHz: PHONE.hudHz,
+  /** No input for this long means the phone dropped: the HUD shows it, the sim holds the last packet. */
+  inputStaleMs: 1500,
+  /** A `seq` that jumps backwards by more than this is a phone restart, not a late packet. */
+  seqResetGap: 1000,
+  /** Hard cap on players per room (6 teams x 3). The scene may lower it with a `gate`. */
+  maxPlayers: 18,
+  /** Longest name the relay accepts. Longer names are cut, not rejected. */
+  nameMax: 16,
+  /** A player slot (token -> pid) survives a disconnect for this long. */
+  playerGraceMs: 10 * 60_000,
+  /** A room survives its scene socket leaving for this long (reload, HMR, laptop sleep). */
+  sceneGraceMs: 90_000,
+  /** Relay-side rate limits per socket. Inputs: sustained/s and burst. Others: per second. */
+  inputRatePerSec: 45,
+  inputBurst: 60,
+  controlRatePerSec: 10,
+  /** Largest single socket.io message the relay accepts (bytes). Inputs are ~90 B, a full roster ~1.5 KB. */
+  maxMessageBytes: 8192,
+  /** Server ping settings. Phones detect a dead link within pingInterval + pingTimeout. */
+  pingIntervalMs: 10_000,
+  pingTimeoutMs: 10_000,
+} as const;
 
 // ---------------------------------------------------------------------------
-// Inputs: phone -> relay -> scene, 30 Hz, volatile.
+// Room codes
 // ---------------------------------------------------------------------------
 
-interface InputBase {
+/** 22 letters: no I, L, O, Q (they read as 1, I, 0, O on a projector). */
+export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPRSTUVWXYZ';
+export const ROOM_CODE_LENGTH = 4;
+const ROOM_CODE_RE = /^[ABCDEFGHJKMNPRSTUVWXYZ]{4}$/;
+
+/** Upper-cases and trims user input; returns null unless it is a valid code. */
+export function normalizeRoomCode(raw: string): string | null {
+  const code = raw.trim().toUpperCase();
+  return ROOM_CODE_RE.test(code) ? code : null;
+}
+
+/** Extracts a room code from a scanned QR / pasted link (`/play?room=RIVA`) or a bare code. */
+export function roomCodeFromText(text: string): string | null {
+  const direct = normalizeRoomCode(text);
+  if (direct) return direct;
+  try {
+    const url = new URL(text.trim(), 'https://x.invalid');
+    const q = url.searchParams.get('room');
+    return q ? normalizeRoomCode(q) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The URL the join QR encodes. */
+export function joinUrl(origin: string, code: string): string {
+  const url = new URL('/play', origin);
+  url.searchParams.set('room', code);
+  return url.toString();
+}
+
+// ---------------------------------------------------------------------------
+// phone -> relay -> scene: inputs, 30 Hz, volatile
+// ---------------------------------------------------------------------------
+
+/**
+ * Shared header of every input packet. `seq` is assigned by src/net/client.ts,
+ * monotonic per connection; the scene drops packets whose seq is not greater
+ * than the last one it applied (src/net/inputHold.ts).
+ */
+export interface InputBase {
   t: 'in';
-  /** Monotonic per phone session; the scene drops packets older than the last seen. */
   seq: number;
 }
 
+/** Pilot: `steer` is -1..1 after dead zone and full-lock mapping (positive = right); gas/brake are held states. */
 export interface PilotIn extends InputBase {
   role: 'pilot';
-  /** -1 (full left) .. 1 (full right), dead zone and curve already applied on the phone. */
   steer: number;
   gas: boolean;
   brake: boolean;
 }
 
+/**
+ * Gunner. Aim is sent twice so a dropped packet never loses rotation:
+ *   dYaw  radians turned since the previous packet (gain already applied on the phone;
+ *         positive = view turns left, same sign as world yaw). The sim uses it for the
+ *         under-crosshair gain drop: base -= (1 - AIM.gainUnderCrosshair) * dYaw.
+ *   yaw   radians accumulated since the last calibrate/recenter (absolute).
+ *   ep    epoch, incremented on every calibrate or recenter. The scene re-bases its world
+ *         aim behind the bow when ep changes, so a lost `recenter: true` still recenters.
+ *   fire  held state; fc counts fire taps so a tap shorter than one packet is never lost.
+ *   use/uc  teams of 2 only: the Gunner also holds the two power buttons (same rules as EngIn).
+ */
 export interface GunnerIn extends InputBase {
   role: 'gunner';
-  /**
-   * Yaw change in radians accumulated since the last packet, gain already
-   * applied on the phone. Positive = turn the view left (same sign as world yaw).
-   * The scene applies the under-crosshair gain reduction, not the phone.
-   */
   dYaw: number;
-  /** FIRE held during this packet window (edge detection happens on the scene). */
+  yaw: number;
+  ep: number;
   fire: boolean;
-  /** RECENTER tapped since the last packet. */
+  fc: number;
   recenter: boolean;
-  /** Teams of 2: the Gunner also holds the two power buttons. */
-  use?: 0 | 1 | null;
+  use: 0 | 1 | null;
+  uc: number;
 }
 
-export interface EngineerIn extends InputBase {
+/**
+ * Engineer. `use` is the slot last tapped, `uc` counts taps so the scene applies each
+ * tap exactly once (apply when uc changes and use !== null). `shake` is 0..1.
+ */
+export interface EngIn extends InputBase {
   role: 'engineer';
-  /** Power slot tapped since the last packet, or null. */
   use: 0 | 1 | null;
-  /** 0..1 shake intensity over the last window. */
+  uc: number;
   shake: number;
 }
 
-export type InputPacket = PilotIn | GunnerIn | EngineerIn;
+export type InputMsg = PilotIn | GunnerIn | EngIn;
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+/** What the phone UI produces each tick; the net client adds `seq`. */
+export type InputSample = DistributiveOmit<InputMsg, 'seq'>;
 
 // ---------------------------------------------------------------------------
-// Phone -> scene control messages (reliable), forwarded by the relay as `player:msg`.
+// phone -> relay -> scene: control messages, reliable
 // ---------------------------------------------------------------------------
 
-export type PhoneMsg =
-  | { t: 'swap'; team?: number; role?: Role }
-  | { t: 'ready'; ready: boolean }
-  | { t: 'calibrated' }
-  | { t: 'name'; name: string }
-  | { t: 'leave' };
+export interface Hello {
+  t: 'hello';
+  v: ProtocolVersion;
+  room: string;
+  /** Random per phone, kept in localStorage; the same token rejoins the same slot. */
+  token: string;
+  name: string;
+}
+/** Move to another team and/or take a role (swaps with whoever holds it). */
+export interface Swap {
+  t: 'swap';
+  team?: number;
+  role?: Role;
+}
+export interface Ready {
+  t: 'ready';
+  ready: boolean;
+}
+/** The phone finished calibration (Pilot: level angle; Gunner: pointed at the screen). */
+export interface Calibrate {
+  t: 'calibrate';
+}
+export interface Rename {
+  t: 'rename';
+  name: string;
+}
+export interface Leave {
+  t: 'leave';
+}
+
+/** Control messages the scene applies to the roster (`Sim.applyMessage`). */
+export type PhoneControl = Swap | Ready | Calibrate | Rename | Leave;
 
 // ---------------------------------------------------------------------------
-// Scene -> phone messages (reliable except `hud`), sent via `to` / `hud`.
+// scene -> relay -> phone(s)
 // ---------------------------------------------------------------------------
 
 /** Per-player status, 10 Hz, volatile. Everything a phone screen shows. */
 export interface Hud {
   t: 'hud';
   phase: Phase;
+  /** Team index, or -1 while spectating. */
   team: number;
   role: Role;
   teamName: string;
@@ -115,6 +236,7 @@ export interface Hud {
 
 export type EvtKind = 'kill' | 'sunk' | 'respawn' | 'shielded' | 'fired' | 'hit' | 'pickup' | 'power' | 'rammed' | 'win' | 'countdown' | 'start';
 
+/** One-shot cue for haptics and flashes. Volatile: a lost cue is fine. */
 export interface Evt {
   t: 'evt';
   kind: EvtKind;
@@ -123,12 +245,13 @@ export interface Evt {
 }
 
 export interface LobbyMember {
-  id: string;
+  pid: string;
   name: string;
   role: Role;
   ready: boolean;
   calibrated: boolean;
   connected: boolean;
+  /** Keyboard harness or bot seat on the scene PC. */
   virtual: boolean;
 }
 
@@ -136,175 +259,305 @@ export interface LobbyTeam {
   index: number;
   name: string;
   colour: string;
+  /** Members in role order: [pilot, gunner, engineer]. */
   members: LobbyMember[];
-  /** Free slots in this team under the current size plan. */
+  /** Seats in this team under the current size plan. */
   capacity: number;
 }
 
-/** Lobby roster broadcast to every phone on any change. Phones find themselves by id. */
-export interface LobbySnapshot {
+/** Full roster snapshot. Sent to every phone on every change; each phone finds itself by pid. */
+export interface Lobby {
   t: 'lobby';
   phase: Phase;
   teamSize: 2 | 3;
   teams: LobbyTeam[];
-  /** Spectators waiting for a slot. */
+  /** Waiting for a slot (room full or joined mid-match). */
   spectators: LobbyMember[];
 }
 
-export type SceneMsg = Hud | Evt | LobbySnapshot | { t: 'kick'; reason: string };
-
 // ---------------------------------------------------------------------------
-// Relay control: room creation and joining.
+// relay <-> scene and relay <-> phone bookkeeping
 // ---------------------------------------------------------------------------
 
-export interface HostRequest {
-  v: number;
-  /** Reclaim an existing room after a scene reload (code from sessionStorage). */
-  reclaim?: string;
+/** Scene asks for a room. With `code` + `sceneToken` it re-claims the room after a reload. */
+export interface HostMsg {
+  t: 'host';
+  v: ProtocolVersion;
+  code?: string;
+  sceneToken?: string;
+}
+export interface RelayPlayer {
+  pid: string;
+  name: string;
+  connected: boolean;
+  queued: boolean;
+}
+export interface RoomCreated {
+  t: 'room';
+  code: string;
+  sceneToken: string;
+  reclaimed: boolean;
+  /** Players the relay still holds for this room (after a scene reload). */
+  players: RelayPlayer[];
+}
+/** Scene tells the relay who may join. The relay enforces it without knowing why. */
+export interface Gate {
+  t: 'gate';
+  /** Players the room accepts (<= NET.maxPlayers). */
+  max: number;
+  /** True while a match runs. New tokens are then queued (late: 'queue') or refused. */
+  locked: boolean;
+  late: 'queue' | 'reject';
 }
 
-export type HostResponse = { ok: true; code: string; reclaimed: boolean } | { ok: false; code: ErrorCode };
-
-export interface Hello {
-  v: number;
-  room: string;
-  /** Random per phone, kept in localStorage; the same token rejoins the same slot. */
+export interface Welcome {
+  t: 'welcome';
+  v: ProtocolVersion;
+  code: string;
+  pid: string;
   token: string;
-  name: string;
+  /** The token was already in this room: same pid, same seat. */
+  rejoined: boolean;
+  /** Joined while locked: the scene seats this player at the next lobby. */
+  queued: boolean;
+  sceneOnline: boolean;
 }
 
-export type ErrorCode = 'no_room' | 'room_full' | 'bad_version' | 'no_scene' | 'bad_request' | 'rate_limited';
+export type ErrCode =
+  | 'bad_version'
+  | 'bad_hello'
+  | 'no_room'
+  | 'room_full'
+  | 'match_running'
+  | 'room_closed'
+  | 'kicked'
+  | 'replaced'
+  | 'rate_limited'
+  | 'not_in_room';
+export interface Err {
+  t: 'err';
+  code: ErrCode;
+  msg?: string;
+}
 
-export type HelloResponse =
-  | { ok: true; playerId: string; reconnected: boolean; sceneConnected: boolean }
-  | { ok: false; code: ErrorCode };
+/** To phones: the big screen's socket went away (grace period) or came back. */
+export interface RoomStatus {
+  t: 'room';
+  sceneOnline: boolean;
+}
 
-/** Relay -> scene when a phone joins or rejoins. */
+/** To the scene. */
 export interface PlayerJoined {
-  playerId: string;
+  t: 'joined';
+  pid: string;
   name: string;
-  reconnected: boolean;
+  queued: boolean;
+}
+export interface PlayerLeft {
+  t: 'left';
+  pid: string;
+  reason: 'disconnect' | 'leave' | 'kick' | 'expired';
+}
+export interface PlayerReconnected {
+  t: 'reconnected';
+  pid: string;
+  name: string;
 }
 
-/** Scene -> relay: deliver a message to one player or to every phone in the room. */
-export interface Envelope {
-  to: string | 'all';
-  msg: SceneMsg;
-}
-
-/** Scene -> relay: one HUD per player per tick; the relay fans out. */
-export interface HudBatch {
-  byPlayer: Record<string, Hud>;
-}
+export type PhoneToRelay = Hello | PhoneControl | InputMsg;
+export type RelayToPhone = Welcome | Err | RoomStatus | Hud | Evt | Lobby;
+export type SceneToRelay = HostMsg | Gate | Hud | Evt | Lobby;
+export type RelayToScene = RoomCreated | Err | PlayerJoined | PlayerLeft | PlayerReconnected;
 
 // ---------------------------------------------------------------------------
-// Socket.IO typed event maps (shared by server/ and src/net/).
+// Socket.IO typed event maps (socket.io 4.8: Server<C2S, S2C, InterServer, SocketData>)
 // ---------------------------------------------------------------------------
 
 export interface ClientToServerEvents {
-  host: (req: HostRequest, ack: (res: HostResponse) => void) => void;
-  hello: (req: Hello, ack: (res: HelloResponse) => void) => void;
-  /** Phone input packet, volatile. */
-  in: (pkt: InputPacket) => void;
-  /** Phone control message. */
-  msg: (msg: PhoneMsg) => void;
-  /** Scene -> one player or all. */
-  to: (env: Envelope) => void;
-  /** Scene -> many players, volatile. */
-  hud: (batch: HudBatch) => void;
+  // scene
+  host: (msg: HostMsg, ack: (res: RoomCreated | Err) => void) => void;
+  gate: (msg: Gate) => void;
+  kick: (pid: string) => void;
+  hud: (pid: string, msg: Hud) => void;
+  /** `pid` null = every phone in the room. */
+  evt: (pid: string | null, msg: Evt) => void;
+  lobby: (msg: Lobby) => void;
+  // phone
+  hello: (msg: Hello, ack: (res: Welcome | Err) => void) => void;
+  in: (msg: InputMsg) => void;
+  swap: (msg: Swap) => void;
+  ready: (msg: Ready) => void;
+  calibrate: (msg: Calibrate) => void;
+  rename: (msg: Rename) => void;
+  leave: (msg: Leave) => void;
 }
 
 export interface ServerToClientEvents {
-  /** To the scene. */
-  'player:join': (p: PlayerJoined) => void;
-  'player:leave': (p: { playerId: string }) => void;
-  'player:in': (p: { playerId: string; in: InputPacket }) => void;
-  'player:msg': (p: { playerId: string; msg: PhoneMsg }) => void;
-  /** To phones. */
-  msg: (msg: SceneMsg) => void;
-  'scene:status': (s: { connected: boolean }) => void;
-  'room:closed': (r: { reason: string }) => void;
+  // to the scene, tagged with the player id
+  joined: (msg: PlayerJoined) => void;
+  left: (msg: PlayerLeft) => void;
+  reconnected: (msg: PlayerReconnected) => void;
+  in: (pid: string, msg: InputMsg) => void;
+  swap: (pid: string, msg: Swap) => void;
+  ready: (pid: string, msg: Ready) => void;
+  calibrate: (pid: string, msg: Calibrate) => void;
+  rename: (pid: string, msg: Rename) => void;
+  // to phones
+  hud: (msg: Hud) => void;
+  evt: (msg: Evt) => void;
+  lobby: (msg: Lobby) => void;
+  room: (msg: RoomStatus) => void;
+  // to either
+  err: (msg: Err) => void;
 }
 
-export interface InterServerEvents {}
+/** Single-process relay: no inter-server events. */
+export type InterServerEvents = Record<string, never>;
 
 export interface SocketData {
-  kind: 'scene' | 'player';
-  room: string;
-  playerId?: string;
-  token?: string;
+  kind: 'scene' | 'player' | null;
+  code: string | null;
+  pid: string | null;
+  token: string | null;
 }
 
 // ---------------------------------------------------------------------------
-// Validation helpers used by the relay and the scene. Small, allocation-free.
+// Validation of untrusted phone messages (pure; used by server/relay.ts and tests)
 // ---------------------------------------------------------------------------
 
-export function isRoomCode(s: unknown): s is string {
-  return typeof s === 'string' && /^[A-Z]{4}$/.test(s);
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null && !Array.isArray(x);
+}
+function num(x: unknown): number | null {
+  return typeof x === 'number' && Number.isFinite(x) ? x : null;
+}
+function clamp(x: number, lo: number, hi: number): number {
+  return x < lo ? lo : x > hi ? hi : x;
+}
+function uint(x: unknown): number | null {
+  const n = num(x);
+  return n !== null && n >= 0 && n <= Number.MAX_SAFE_INTEGER ? Math.floor(n) : null;
+}
+function bool(x: unknown): boolean {
+  return x === true;
+}
+function slot(x: unknown): 0 | 1 | null {
+  return x === 0 ? 0 : x === 1 ? 1 : null;
 }
 
-export function isFiniteNumber(n: unknown): n is number {
-  return typeof n === 'number' && Number.isFinite(n);
+/** Trims, strips control characters, caps length. Returns null for an empty name. */
+export function sanitizeName(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  // eslint-disable-next-line no-control-regex
+  const clean = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, NET.nameMax);
+  return clean.length > 0 ? clean : null;
 }
 
-/** Shape-check an input packet and clamp its numbers; returns null when malformed. */
-export function sanitizeInput(raw: unknown): InputPacket | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const p = raw as Record<string, unknown>;
-  if (p['t'] !== 'in' || !isFiniteNumber(p['seq'])) return null;
-  const seq = Math.max(0, Math.floor(p['seq']));
-  switch (p['role']) {
+/** Validates and clamps one input packet. Returns null for anything the sim must not see. */
+export function parseInput(x: unknown): InputMsg | null {
+  if (!isRecord(x) || x['t'] !== 'in') return null;
+  const seq = uint(x['seq']);
+  if (seq === null) return null;
+  switch (x['role']) {
     case 'pilot': {
-      if (!isFiniteNumber(p['steer'])) return null;
-      return { t: 'in', seq, role: 'pilot', steer: Math.max(-1, Math.min(1, p['steer'])), gas: p['gas'] === true, brake: p['brake'] === true };
+      const steer = num(x['steer']);
+      if (steer === null) return null;
+      return { t: 'in', seq, role: 'pilot', steer: clamp(steer, -1, 1), gas: bool(x['gas']), brake: bool(x['brake']) };
     }
     case 'gunner': {
-      if (!isFiniteNumber(p['dYaw'])) return null;
-      const use = p['use'] === 0 || p['use'] === 1 ? p['use'] : null;
+      const dYaw = num(x['dYaw']);
+      const yaw = num(x['yaw']);
+      const ep = uint(x['ep']);
+      const fc = uint(x['fc']);
+      if (dYaw === null || yaw === null || ep === null || fc === null) return null;
       return {
         t: 'in',
         seq,
         role: 'gunner',
-        dYaw: Math.max(-Math.PI, Math.min(Math.PI, p['dYaw'])),
-        fire: p['fire'] === true,
-        recenter: p['recenter'] === true,
-        use,
+        dYaw: clamp(dYaw, -Math.PI, Math.PI),
+        yaw: clamp(yaw, -64 * Math.PI, 64 * Math.PI),
+        ep,
+        fire: bool(x['fire']),
+        fc,
+        recenter: bool(x['recenter']),
+        use: slot(x['use']),
+        uc: uint(x['uc']) ?? 0,
       };
     }
     case 'engineer': {
-      if (!isFiniteNumber(p['shake'])) return null;
-      const use = p['use'] === 0 || p['use'] === 1 ? p['use'] : null;
-      return { t: 'in', seq, role: 'engineer', use, shake: Math.max(0, Math.min(1, p['shake'])) };
+      const shake = num(x['shake']);
+      const uc = uint(x['uc']);
+      if (shake === null || uc === null) return null;
+      return { t: 'in', seq, role: 'engineer', use: slot(x['use']), uc, shake: clamp(shake, 0, 1) };
     }
     default:
       return null;
   }
 }
 
-export function sanitizePhoneMsg(raw: unknown): PhoneMsg | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const m = raw as Record<string, unknown>;
-  switch (m['t']) {
-    case 'swap': {
-      const out: PhoneMsg = { t: 'swap' };
-      if (isFiniteNumber(m['team'])) out.team = Math.floor(m['team']);
-      if (m['role'] === 'pilot' || m['role'] === 'gunner' || m['role'] === 'engineer') out.role = m['role'];
-      return out;
-    }
-    case 'ready':
-      return { t: 'ready', ready: m['ready'] === true };
-    case 'calibrated':
-      return { t: 'calibrated' };
-    case 'name':
-      return typeof m['name'] === 'string' ? { t: 'name', name: m['name'].slice(0, 16) } : null;
-    case 'leave':
-      return { t: 'leave' };
-    default:
-      return null;
-  }
+export function parseHello(x: unknown): Hello | null {
+  if (!isRecord(x) || x['t'] !== 'hello' || x['v'] !== PROTOCOL_VERSION) return null;
+  const room = typeof x['room'] === 'string' ? normalizeRoomCode(x['room']) : null;
+  const token = x['token'];
+  const name = sanitizeName(x['name']);
+  if (!room || typeof token !== 'string' || token.length < 8 || token.length > 64 || !name) return null;
+  return { t: 'hello', v: PROTOCOL_VERSION, room, token, name };
 }
 
-/** Build the join URL the QR encodes. */
-export function joinUrl(origin: string, code: string): string {
-  return `${origin}/play?room=${encodeURIComponent(code)}`;
+export function parseHost(x: unknown): HostMsg | null {
+  if (!isRecord(x) || x['t'] !== 'host' || x['v'] !== PROTOCOL_VERSION) return null;
+  const msg: HostMsg = { t: 'host', v: PROTOCOL_VERSION };
+  if (typeof x['code'] === 'string' && typeof x['sceneToken'] === 'string') {
+    const code = normalizeRoomCode(x['code']);
+    if (code && x['sceneToken'].length >= 8 && x['sceneToken'].length <= 64) {
+      msg.code = code;
+      msg.sceneToken = x['sceneToken'];
+    }
+  }
+  return msg;
+}
+
+export function parseSwap(x: unknown): Swap | null {
+  if (!isRecord(x) || x['t'] !== 'swap') return null;
+  const out: Swap = { t: 'swap' };
+  const team = x['team'];
+  if (team !== undefined) {
+    const n = uint(team);
+    if (n === null || n > 5) return null;
+    out.team = n;
+  }
+  const role = x['role'];
+  if (role !== undefined) {
+    if (role !== 'pilot' && role !== 'gunner' && role !== 'engineer') return null;
+    out.role = role;
+  }
+  return out;
+}
+
+export function parseReady(x: unknown): Ready | null {
+  if (!isRecord(x) || x['t'] !== 'ready') return null;
+  return { t: 'ready', ready: bool(x['ready']) };
+}
+
+export function parseCalibrate(x: unknown): Calibrate | null {
+  return isRecord(x) && x['t'] === 'calibrate' ? { t: 'calibrate' } : null;
+}
+
+export function parseRename(x: unknown): Rename | null {
+  if (!isRecord(x) || x['t'] !== 'rename') return null;
+  const name = sanitizeName(x['name']);
+  return name ? { t: 'rename', name } : null;
+}
+
+export function parseGate(x: unknown): Gate | null {
+  if (!isRecord(x) || x['t'] !== 'gate') return null;
+  const max = uint(x['max']);
+  const late = x['late'];
+  if (max === null || (late !== 'queue' && late !== 'reject')) return null;
+  return { t: 'gate', max: clamp(max, 1, NET.maxPlayers), locked: bool(x['locked']), late };
+}
+
+/** The scene is our own PC, so scene payloads get a shape check only (the relay never reads game fields). */
+export function hasTag<T extends string>(x: unknown, t: T): x is { t: T } & Record<string, unknown> {
+  return isRecord(x) && x['t'] === t;
 }

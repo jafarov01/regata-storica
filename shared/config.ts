@@ -58,7 +58,12 @@ export const SIM = {
 export const BOAT = {
   length: 6,
   beam: 1.4,
-  /** Body mass in kg; forces below are sized for it. */
+  /**
+   * Body mass in kg; forces below are sized for it. Settled: 400 kg. Rapier damping
+   * gives terminal speed = thrust / (mass * linearDamping), so keep
+   * thrust = mass * linearDamping * topSpeed (400 * 0.65 * 10 = 2600) when tuning.
+   * The physics research used 1000 kg; scale its forces by 0.4 when lifting code.
+   */
   mass: 400,
   /** Arcade top speed (about 3x a real gondola). playtest */
   topSpeed: 10,
@@ -265,18 +270,7 @@ export const MINIMAP = {
   pingCooldownSec: 20,
 } as const;
 
-export const NET = {
-  protocolVersion: 1,
-  /** No input for this long means the phone dropped; the HUD shows it. */
-  inputStaleSec: 1.5,
-  /** The relay keeps a room alive this long after its scene disconnects. */
-  roomGraceSec: 90,
-  /** Per-socket input packets per second allowed before dropping. */
-  inputRateLimitHz: 60,
-  roomCodeLength: 4,
-  /** Letters without look-alikes (no I, O, Q, U). */
-  roomCodeAlphabet: 'ABCDEFGHJKLMNPRSTVWXYZ',
-} as const;
+// Wire constants (room codes, rates, grace periods) live in shared/protocol.ts (NET).
 
 export const KEYBOARD = {
   /** Keyboard steering ramps to full lock in this many seconds. */

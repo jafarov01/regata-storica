@@ -1,3 +1,4 @@
+// `test` is a vitest key: defineConfig must come from 'vitest/config' or `tsc` rejects it (TS2769).
 import { defineConfig } from 'vitest/config';
 import type { PluginOption } from 'vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
@@ -12,6 +13,9 @@ import { fileURLToPath, URL } from 'node:url';
 // (`npm run tunnel`), which terminates TLS for you. See docs/CHALLENGES.md.
 const RELAY_PORT = Number(process.env.RELAY_PORT ?? 3000);
 const useHttps = process.env.HTTPS === '1';
+// Public hostname of the tunnel (e.g. abc-def.trycloudflare.com) when phones load the dev server
+// through it. Only needed for HMR on the scene PC; phones never need HMR.
+const TUNNEL_HOST = process.env.TUNNEL_HOST;
 
 export default defineConfig({
   appType: 'spa',
@@ -36,17 +40,19 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-    // Through a Cloudflare/ngrok tunnel the browser reaches us on 443; HMR must
-    // connect back on that port, not 5173.
-    hmr: process.env.TUNNEL_HOST
-      ? { host: process.env.TUNNEL_HOST, clientPort: 443, protocol: 'wss' }
-      : undefined,
-    allowedHosts: true,
+    // Vite 8: `server.hmr.{host,clientPort,protocol}` are deprecated (still synced); `server.ws` is current.
+    // Through a Cloudflare/ngrok tunnel the browser reaches us on 443; HMR must connect back on that port.
+    ...(TUNNEL_HOST ? { ws: { host: TUNNEL_HOST, clientPort: 443, protocol: 'wss' } } : {}),
+    // Tunnel hostnames are random per run, so allow the two tunnel domains rather than `true`
+    // (`true` disables the DNS-rebinding protection for every host).
+    allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.ngrok-free.dev', '.ngrok.app', '.ngrok.dev'],
   },
   build: {
     outDir: 'dist',
     sourcemap: true,
     target: 'es2022',
+    // The scene chunk carries Three.js (~600 kB); phones never load it (dynamic import per route).
+    chunkSizeWarningLimit: 1000,
   },
   test: {
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts', 'shared/**/*.test.ts', 'server/**/*.test.ts'],

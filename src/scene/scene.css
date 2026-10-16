@@ -1,0 +1,179 @@
+/* src/scene/scene.css: big-screen chrome over the WebGL canvas. Track B owns it. */
+.scene {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #05101a;
+}
+.scene canvas.gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.scene .hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-size: clamp(14px, 1.4vw, 26px);
+}
+.lobby-panel {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4vw;
+  align-items: center;
+  padding: 4vw 6vw;
+  background: rgba(5, 16, 26, 0.86);
+}
+.lobby-panel[hidden] {
+  display: none;
+}
+.lobby-panel .join {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.lobby-panel .qr {
+  width: min(32vw, 52vh) !important;
+  height: auto !important;
+  border-radius: 12px;
+  background: #fff;
+}
+.lobby-panel .code {
+  font: 800 clamp(48px, 7vw, 120px) var(--font);
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+.lobby-panel .url {
+  max-width: 34vw;
+  text-align: center;
+  color: var(--fg-dim);
+  word-break: break-all;
+}
+.lobby-panel h1 {
+  font-size: clamp(36px, 4vw, 72px);
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.roster > p {
+  width: 100%;
+  margin: 0;
+}
+.roster .team {
+  min-width: 220px;
+  padding: 10px 14px;
+  border-left: 8px solid var(--team);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+.roster .team h3 {
+  color: var(--team);
+}
+.roster ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.lobby-panel .start {
+  font-size: 1.3em;
+}
+.lobby-panel .keys {
+  color: var(--fg-dim);
+  font-size: 0.75em;
+}
+.top-bar {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 6px 18px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 0 0 12px 12px;
+  z-index: 2;
+}
+.top-bar[hidden] {
+  display: none;
+}
+.top-bar .timer {
+  font-weight: 800;
+  font-size: 1.4em;
+}
+.top-bar .score {
+  color: var(--team);
+  font-weight: 700;
+}
+.top-bar .paused {
+  color: var(--danger);
+  font-weight: 800;
+}
+.cells .cell {
+  position: absolute;
+  box-sizing: border-box;
+  border: 6px solid var(--team);
+}
+.cells .cell.focus {
+  box-shadow: inset 0 0 0 3px #fff;
+}
+.cells .tl,
+.cells .tr {
+  position: absolute;
+  top: 3em; /* below the shared top bar */
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 6px;
+}
+.cells .tl {
+  left: 8px;
+}
+.cells .tl b {
+  color: var(--team);
+}
+.cells .tr {
+  right: 8px;
+}
+.cells .crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 3px solid var(--team);
+  border-radius: 50%;
+}
+.centre {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  text-shadow: 0 2px 8px #000;
+}
+.centre:empty {
+  display: none;
+}
+.centre .big {
+  font: 900 clamp(80px, 14vw, 240px) var(--font);
+  color: var(--accent);
+}
+.centre .results {
+  padding: 24px 40px;
+  background: rgba(5, 16, 26, 0.9);
+  border-radius: 16px;
+}
+.centre .results li {
+  color: var(--team);
+  font-size: 1.3em;
+}

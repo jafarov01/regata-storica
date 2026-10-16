@@ -21,7 +21,7 @@ Solution: one renderer, scissor viewports, **one shadow pass per frame** (`shado
 
 ## 5. The relay, rooms and reconnect
 
-Solution: the relay only routes (`host`, `hello`, `in`, `msg`, `to`, `hud`); inputs volatile at 30 Hz, HUD volatile at 10 Hz per player, roster reliable; token in localStorage rejoins the same slot, the scene reclaims its room code from sessionStorage, 90 s grace after the scene drops; every packet sanitised and rate limited; express 5 SPA fallback; Vite proxies `/socket.io` with `ws: true`. Contract: `shared/protocol.ts`. Proofs and a working relay draft: `docs/research/netcode/`.
+Solution: the relay only routes by room code and player id (scene: `host`, `gate`, `kick`, `hud`, `evt`, `lobby`; phone: `hello`, `in`, `swap`, `ready`, `calibrate`, `rename`, `leave`); inputs volatile at 30 Hz with aim, fire taps and power taps sent as running totals so a lost packet costs nothing, HUD volatile at 10 Hz per player, roster reliable; token in localStorage rejoins the same slot, the scene reclaims its room code from sessionStorage, 90 s grace after the scene drops; every packet sanitised and rate limited; express 5 SPA fallback; Vite proxies `/socket.io` with `ws: true`. Contract: `shared/protocol.ts`. Code: `server/`, `src/net/` (landed from `docs/research/netcode/final.md`, with tests).
 
 ## 6. Boat physics that feels arcade and stays stable
 

@@ -5,12 +5,12 @@
  *   Track B (src/sim) implements `Sim`.
  *   Track C (src/render) implements `Renderer`.
  *   Track B (src/scene) owns the loop that wires them, the layout, the HUD and
- *   the keyboard harness; Track A (src/net) feeds InputPackets and PhoneMsgs in.
+ *   the keyboard harness; Track A (src/net) feeds InputMsgs and PhoneControl messages in.
  *
  * Nothing outside src/sim mutates GameState. The renderer never changes game
  * state. The relay never sees any of this.
  */
-import type { InputPacket, LobbySnapshot, PhoneMsg } from './protocol.ts';
+import type { InputMsg, Lobby, PhoneControl } from './protocol.ts';
 import type { GameState, Role, SimEvent } from './state.ts';
 import type { ParsedMap } from './map.ts';
 
@@ -31,11 +31,11 @@ export interface Sim {
   addPlayer(id: string, name: string, opts?: AddPlayerOptions): void;
   removePlayer(id: string): void;
   setConnected(id: string, connected: boolean): void;
-  /** Handles swap / ready / calibrated / name / leave from a phone. */
-  applyMessage(id: string, msg: PhoneMsg): void;
+  /** Handles swap / ready / calibrate / rename / leave from a phone. */
+  applyMessage(id: string, msg: PhoneControl): void;
   setTeamSize(size: 2 | 3): void;
   /** Lobby snapshot for the phones; built from the state. */
-  lobbySnapshot(): LobbySnapshot;
+  lobbySnapshot(): Lobby;
 
   // Flow -------------------------------------------------------------------
   /** Lobby -> countdown. Returns false (and does nothing) when the roster is not startable. */
@@ -50,8 +50,14 @@ export interface Sim {
   abort(): void;
 
   // Inputs -----------------------------------------------------------------
-  /** From phones or the keyboard harness; stale seq numbers are dropped. */
-  applyInput(id: string, input: InputPacket): void;
+  /**
+   * From phones (via src/net/inputHold.ts, which already drops stale seq) or the
+   * keyboard harness. The sim holds the last packet per player until the next one.
+   * Gunner aim: world aim = base + input.yaw, re-based behind the bow whenever
+   * input.ep changes or the boat respawns (see AimTracker in src/net/inputHold.ts).
+   * Fire taps and power taps count by `fc` / `uc` changes, never by edges.
+   */
+  applyInput(id: string, input: InputMsg): void;
 
   // Time -------------------------------------------------------------------
   /** Advance by one fixed step (SIM.dt). */
@@ -81,7 +87,11 @@ export interface Rect {
   h: number;
 }
 
-/** Pixel rects on the big screen, fixed for the whole round. */
+/**
+ * Rects on the big screen in CSS pixels, origin top-left (DOM overlays use them
+ * as-is; WebGL setViewport/setScissor need y flipped: glY = height - y - h).
+ * Fixed for the whole round. Built by src/scene/layout.ts.
+ */
 export interface Layout {
   width: number;
   height: number;

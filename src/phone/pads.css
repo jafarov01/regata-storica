@@ -1,0 +1,86 @@
+/* src/phone/pads.css: the phone controller surface.
+   Pair with: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+   (user-scalable=no is honoured by Chrome and ignored by iOS Safari; the JS in pads.ts covers iOS.) */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  /* Chrome Android: no pull-to-refresh, no overscroll glow. Safari 16+: no rubber band. */
+  overscroll-behavior: none;
+}
+
+.phone-root {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh; /* fallback */
+  height: 100dvh; /* Safari 15.4+, Chrome 108+: tracks the collapsing Safari toolbar */
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  touch-action: none; /* no browser panning or zooming starts on the pads */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* no long-press menu on iOS */
+  -webkit-tap-highlight-color: transparent;
+  color: #fff;
+  font: 700 clamp(18px, 5vmin, 40px) system-ui, sans-serif;
+}
+
+.pads {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.pads-gunner {
+  grid-template-columns: 1fr 2fr; /* RECENTER | FIRE (two thirds) */
+}
+
+.zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  transition: background 60ms;
+}
+.zone.held {
+  background: rgba(255, 255, 255, 0.22);
+}
+.zone.small {
+  position: absolute;
+  left: 4vw;
+  top: 4vh;
+  width: 28vw;
+  height: 14vh;
+  font-size: 0.6em;
+  border-radius: 1em;
+  z-index: 2;
+}
+
+.rotate-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 10;
+}
+.rotate-overlay.visible {
+  display: grid;
+}
+
+.flash-red {
+  animation: flash-red 220ms ease-out;
+}
+@keyframes flash-red {
+  from {
+    box-shadow: inset 0 0 0 100vmax rgba(255, 0, 0, 0.75);
+  }
+  to {
+    box-shadow: inset 0 0 0 100vmax rgba(255, 0, 0, 0);
+  }
+}

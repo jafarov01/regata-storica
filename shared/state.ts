@@ -17,7 +17,8 @@ import type { PowerId, WeaponId } from './config.ts';
 export type Phase = 'lobby' | 'countdown' | 'battle' | 'suddendeath' | 'results';
 export type Role = 'pilot' | 'gunner' | 'engineer';
 export const ROLES: readonly Role[] = ['pilot', 'gunner', 'engineer'];
-export type BoatStatus = 'alive' | 'sinking' | 'respawning';
+/** 'out': eliminated in sudden death (only tied teams keep fighting). */
+export type BoatStatus = 'alive' | 'sinking' | 'respawning' | 'out';
 export type CrosshairState = 'neutral' | 'enemy' | 'hit' | 'lock';
 export type CrateCategory = 'weapon' | 'power';
 export type KillCause = WeaponId | 'mine' | 'ram';

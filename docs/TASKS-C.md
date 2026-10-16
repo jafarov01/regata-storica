@@ -1,12 +1,12 @@
 # TASKS-C: world and art
 
-Owns `src/render/`, `public/assets/`. Read `HANDOFF.md`, `shared/api.ts` (the `Renderer` interface and `Layout`), `shared/state.ts`, `shared/map.ts` first. Ready-made code: `docs/research/render/code/src/render`, `docs/research/render/code/src/scene`, `docs/research/render/code/tests` (buildings, camera, layout) and the render agent transcript `docs/research/_workflow/agent-a71c3c61ab65370a0.jsonl` (its draft write-up). Assets: `docs/ASSETS.md`.
+Owns `src/render/`, `public/assets/`, and the camera rigs (moved from Track B). Read `HANDOFF.md`, `ARCHITECTURE.md`, `shared/api.ts` (the `Renderer` interface and `Layout`), `shared/state.ts`, `shared/map.ts` first. Ready-made code: `docs/research/render/code/src/render`, `docs/research/render/code/src/scene`, `docs/research/render/code/tests` (buildings, camera, layout) and the render agent transcript `docs/research/_workflow/agent-a71c3c61ab65370a0.jsonl` (its draft write-up). Assets: `docs/ASSETS.md`.
 
 Decide in the first hour: Mixamo GLB crew or code-built stylised crew. Recommendation from the research: code-built capsule characters with procedural animation for the hackathon; GLB as the upgrade path.
 
 ## Base (with everyone)
 
-- [ ] C1 `src/render/index.ts` implementing `Renderer`: one `WebGLRenderer`, scissor viewports from `Layout.cells`, one camera per `CameraView`, `autoClear` once per frame, DPR capped at 1, resize. Box boats and a flat grid. Done: two viewports show two moving boxes driven by the sim.
+- [x] C1 (placeholder in `src/render/index.ts`; next: land the research renderer behind it with a `GameState -> RenderState` adapter, research yaw = -PI/2 - repo yaw) `src/render/index.ts` implementing `Renderer`: one `WebGLRenderer`, scissor viewports from `Layout.cells`, one camera per `CameraView`, `autoClear` once per frame, DPR capped at 1, resize. Box boats and a flat grid. Done: two viewports show two moving boxes driven by the sim.
 
 ## MVP (Gate 2)
 

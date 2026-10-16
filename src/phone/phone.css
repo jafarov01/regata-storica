@@ -1,0 +1,100 @@
+/* src/phone/phone.css: join and lobby screens around the pads (pads.css). Track A owns it. */
+.phone-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  min-height: 100dvh;
+  padding: 24px;
+  text-align: center;
+}
+.code-input,
+.name-input {
+  width: min(80vw, 320px);
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 2px solid var(--fg-dim);
+  background: var(--bg-2);
+  color: var(--fg);
+  font: 700 28px var(--font);
+  text-align: center;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.name-input {
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+#scanner {
+  width: min(80vw, 320px);
+  border-radius: var(--radius);
+}
+.phone-root {
+  --team: #333;
+  background: color-mix(in srgb, var(--team) 55%, #000);
+}
+.phone-bar {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  font-size: 0.55em;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.35);
+}
+.phone-lobby {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 16px 16px;
+  background: color-mix(in srgb, var(--team) 55%, #000);
+}
+.phone-lobby .row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  font-size: 0.6em;
+}
+.chip.on {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #000;
+}
+.phone-lobby .muted {
+  font-size: 0.5em;
+  font-weight: 400;
+  max-width: 90vw;
+}
+.pads-mount {
+  position: absolute;
+  inset: 0;
+}
+.phone-hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: env(safe-area-inset-bottom);
+  z-index: 3;
+  padding: 6px 12px;
+  font-size: 0.5em;
+  text-align: center;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.35);
+}
