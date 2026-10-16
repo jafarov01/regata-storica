@@ -10,6 +10,14 @@ export const TUNING = {
   boat: {
     /** N against forward motion while BRAKE is held and the boat still moves forward (15 000 x 0.4). */
     brakeForce: 6000,
+    /**
+     * Multiplier on BOAT.steerTorqueBase (the torque at rest). With the config value alone
+     * the 400 kg hull turned 0.27 rad/s at rest (measured), too slow to turn round in an
+     * 8 m side canal. x1.85 gives the physics research's 0.5 rad/s at rest; the per-speed
+     * part already matches it, so the turn rate still reaches about 1.3 rad/s at top speed.
+     * Fold it into shared/config.ts at the playtest (steerTorqueBase 1665) and set this to 1.
+     */
+    steerTorqueBaseMul: 1.85,
     /** BRAKE + steer counts as a drift only above this much steer. */
     driftMinSteer: 0.3,
     /** Steering torque multiplier while drifting. */

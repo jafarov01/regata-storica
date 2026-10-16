@@ -4,10 +4,12 @@
  * Rapier's wasm is decoded once by createSim.
  */
 import { describe, expect, it } from 'vitest';
-import { BOAT, MATCH, MINE, RESPAWN, SIM, WEAPONS } from '../shared/config.ts';
+import { AIM, BOAT, MATCH, MINE, RESPAWN, SIM, WEAPONS } from '../shared/config.ts';
 import type { InputMsg } from '../shared/protocol.ts';
 import type { SimEvent } from '../shared/state.ts';
 import { createSim, type GameSim } from '../src/sim/index.ts';
+import { LobbySync, buildHud, forwardEvents } from '../src/scene/phoneFeed.ts';
+import { CameraViews } from '../src/scene/views.ts';
 
 /** Lagoon water, far from walls: x 96..136, z -16..72 (cols 37..41, rows 17..27). */
 const OPEN = { x: 120, z: 40 };
@@ -387,4 +389,188 @@ describe('B9 bots', () => {
     expect(msPerStep).toBeLessThan(1);
     for (const b of sim.state.boats) if (b.status === 'alive') expect(sim.map.isWaterAt(b.pose.x, b.pose.z)).toBe(true);
   }, 60_000);
+});
+
+describe('audit fixes (Track B review)', () => {
+  it('keeps a phone Pilot from steering until CALIBRATE, then turns about 0.5 rad/s at rest', async () => {
+    const sim = await createSim();
+    sim.addPlayer('ph', 'Phone');
+    sim.start();
+    steps(sim, MATCH.countdownSec + 0.05);
+    sim.debug.teleport(0, OPEN.x, OPEN.z, 0);
+    steps(sim, 1, () => sim.applyInput('ph', pilot(1, false)));
+    expect(Math.abs(boat(sim, 0).angVel)).toBeLessThan(1e-3);
+    sim.applyMessage('ph', { t: 'calibrate' });
+    steps(sim, 2, () => sim.applyInput('ph', pilot(1, false)));
+    expect(boat(sim, 0).angVel).toBeLessThan(-0.4);
+    expect(boat(sim, 0).angVel).toBeGreaterThan(-0.6);
+  });
+
+  it('a fire tap during the countdown is not a queued shot at the start of the battle', async () => {
+    const sim = await createSim();
+    sim.addPlayer('p0', 'P0', { virtual: true, team: 0, role: 'pilot' });
+    sim.addPlayer('g0', 'G0', { virtual: true, team: 0, role: 'gunner' });
+    sim.addPlayer('p1', 'P1', { virtual: true, team: 1, role: 'pilot' });
+    sim.start();
+    sim.debug.giveWeapon(0, 'cannon');
+    sim.applyInput('g0', gunner(0));
+    sim.step();
+    sim.applyInput('g0', gunner(1));
+    steps(sim, MATCH.countdownSec + 1);
+    expect(sim.state.phase).toBe('battle');
+    expect(kinds(sim.drainEvents())).not.toContain('fired');
+    expect(boat(sim, 0).ammo).toBe(WEAPONS.cannon.ammo);
+  });
+
+  it('the Gunner of a 2-member crew uses powers even in teams of 3', async () => {
+    const sim = await duel();
+    expect(sim.state.teamSize).toBe(3);
+    sim.debug.givePower(1, 'shield');
+    sim.applyInput('g1', { t: 'in', seq: seq++, role: 'gunner', dYaw: 0, yaw: 0, ep: 0, fire: false, fc: 0, recenter: false, use: 0, uc: 1 });
+    sim.step();
+    expect(boat(sim, 1).shieldUntil).toBeGreaterThan(sim.state.time);
+    expect(boat(sim, 1).powers[0]).toBeNull();
+  });
+
+  it('the gyro gain drops under the crosshair also while it shows a Torpedo lock', async () => {
+    const sim = await duel();
+    lineUp(sim, 30);
+    sim.debug.giveWeapon(0, 'torpedo');
+    sim.step();
+    expect(boat(sim, 0).crosshair).toBe('lock');
+    expect(boat(sim, 0).aimTarget).toBe(1);
+    sim.applyInput('g0', { t: 'in', seq: seq++, role: 'gunner', dYaw: 0.1, yaw: 0.1, ep: 0, fire: false, fc: 0, recenter: false, use: null, uc: 0 });
+    sim.step();
+    expect(boat(sim, 0).aimYaw).toBeCloseTo(0.1 * AIM.gainUnderCrosshair, 5);
+  });
+
+  it('a boosted ram ends the rammer spawn protection', async () => {
+    const sim = await duel();
+    sim.debug.teleport(0, OPEN.x, OPEN.z + 22, 0);
+    sim.debug.teleport(1, OPEN.x, OPEN.z, Math.PI / 2);
+    boat(sim, 0).boostUntil = sim.state.time + 10;
+    boat(sim, 0).protectedUntil = sim.state.time + 10;
+    steps(sim, 2.5, () => sim.applyInput('p0', pilot(0, true)));
+    expect(boat(sim, 1).killCause).toBe('ram');
+    expect(boat(sim, 0).protectedUntil).toBeLessThanOrEqual(sim.state.time);
+  });
+
+  it('rams count for best ram, not for top Gunner', async () => {
+    const sim = await duel();
+    sim.debug.teleport(0, OPEN.x, OPEN.z + 22, 0);
+    sim.debug.teleport(1, OPEN.x, OPEN.z, Math.PI / 2);
+    boat(sim, 0).boostUntil = sim.state.time + 10;
+    steps(sim, 2.5, () => sim.applyInput('p0', pilot(0, true)));
+    sim.abort();
+    expect(sim.state.results).toMatchObject({ winner: 0, topGunner: null, bestRam: 'p0' });
+  });
+
+  it('sudden death: teams that are not tied are out, with no killer or respawn countdown left over', async () => {
+    const sim = await createSim();
+    for (const t of [0, 1, 2]) {
+      sim.addPlayer(`p${t}`, `P${t}`, { virtual: true, team: t, role: 'pilot' });
+      sim.addPlayer(`g${t}`, `G${t}`, { virtual: true, team: t, role: 'gunner' });
+    }
+    sim.start();
+    steps(sim, MATCH.countdownSec + 0.05);
+    sim.debug.sink(2, 0);
+    steps(sim, RESPAWN.delaySec + 0.05);
+    sim.debug.sink(2, 1);
+    sim.debug.endPhase();
+    sim.step();
+    expect(sim.state.phase).toBe('suddendeath');
+    expect(sim.state.suddenDeathTeams).toEqual([0, 1]);
+    expect(boat(sim, 2)).toMatchObject({ status: 'out', killerTeam: null, respawnAt: 0 });
+  });
+});
+
+describe('audit fixes: roster with bots and keyboard crews', () => {
+  it('a phone never takes a seat on a bot boat, and the bot team survives a team size change', async () => {
+    const sim = await createSim();
+    expect(sim.debug.addBotTeam()).toBe(0);
+    for (let i = 0; i < 5; i++) sim.addPlayer(`ph${i}`, `Phone ${i}`);
+    expect(sim.state.teams[0]?.members).toEqual(['bot-1']);
+    expect(sim.state.teams.slice(1).map((t) => t.members.length)).toEqual([3, 2]);
+    sim.setTeamSize(2);
+    expect(sim.state.teams[0]?.members).toEqual(['bot-1']);
+    expect(sim.state.teams.slice(1).map((t) => t.members.length)).toEqual([2, 2, 1]);
+  });
+
+  it('a keyboard crew stays together, in role order, when the team size changes', async () => {
+    const sim = await createSim();
+    sim.addPlayer('a', 'A');
+    sim.addPlayer('b', 'B');
+    sim.addPlayer('kb-1-pilot', 'KP', { virtual: true, team: 1, role: 'pilot' });
+    sim.addPlayer('kb-1-gunner', 'KG', { virtual: true, team: 1, role: 'gunner' });
+    sim.setTeamSize(2);
+    sim.setTeamSize(3);
+    expect(sim.state.teams[1]?.members.slice(0, 2)).toEqual(['kb-1-pilot', 'kb-1-gunner']);
+    expect(sim.state.players['kb-1-gunner']?.role).toBe('gunner');
+  });
+});
+
+describe('audit fixes: phone feed, lobby resend, kill-cam', () => {
+  it('Hud.hasPowers follows the crew aboard; onTarget stays on while the crosshair shows a lock', async () => {
+    const sim = await createSim();
+    sim.addPlayer('a', 'A');
+    sim.addPlayer('b', 'B');
+    expect(buildHud(sim.state, 'b', false)?.hasPowers).toBe(true);
+    sim.addPlayer('c', 'C');
+    expect(buildHud(sim.state, 'b', false)?.hasPowers).toBe(false);
+    expect(buildHud(sim.state, 'c', false)?.hasPowers).toBe(true);
+    const b = boat(sim, 0);
+    b.crosshair = 'lock';
+    b.aimTarget = 1;
+    b.lockTarget = 1;
+    expect(buildHud(sim.state, 'b', false)).toMatchObject({ onTarget: true, locked: true });
+  });
+
+  it('forwards pickup, power, shielded, respawn and ram cues to the crew, never to keyboard or bot seats', async () => {
+    const sim = await createSim();
+    sim.addPlayer('a', 'A');
+    sim.addPlayer('b', 'B');
+    sim.addPlayer('kb', 'KB', { virtual: true, team: 1, role: 'pilot' });
+    const sent: [string | null, string, string | undefined][] = [];
+    const events: SimEvent[] = [
+      { kind: 'pickup', team: 0, category: 'weapon', item: 'torpedo', x: 0, z: 0 },
+      { kind: 'power', team: 0, power: 'shield', x: 0, z: 0 },
+      { kind: 'shielded', team: 0, x: 0, z: 0 },
+      { kind: 'respawn', team: 0, x: 0, z: 0 },
+      { kind: 'ram', team: 1, victim: 0, lethal: false, x: 0, z: 0 },
+      { kind: 'fired', team: 1, weapon: 'cannon', x: 0, z: 0, yaw: 0 },
+    ];
+    forwardEvents(sim.state, events, (pid, evt) => sent.push([pid, evt.kind, evt.detail]));
+    expect(sent.filter(([pid]) => pid === 'a').map(([, kind]) => kind)).toEqual(['pickup', 'power', 'shielded', 'respawn', 'rammed']);
+    expect(sent.find(([pid, kind]) => pid === 'b' && kind === 'pickup')?.[2]).toBe('Torpedo');
+    expect(sent.some(([pid]) => pid === 'kb')).toBe(false);
+  });
+
+  it('LobbySync resends an unchanged roster after a join or rejoin', async () => {
+    const sim = await createSim();
+    sim.addPlayer('a', 'A');
+    const sync = new LobbySync();
+    expect(sync.take(sim.lobbySnapshot())).not.toBeNull();
+    sim.addPlayer('a', 'A'); // the same token rejoins the same seat: nothing changes
+    expect(sync.take(sim.lobbySnapshot())).toBeNull();
+    sync.invalidate();
+    expect(sync.take(sim.lobbySnapshot())).not.toBeNull();
+  });
+
+  it('the kill-cam follows the killer and ends for good when the killer sinks', async () => {
+    const sim = await duel();
+    const views = new CameraViews();
+    lineUp(sim, 30);
+    sim.debug.giveWeapon(0, 'cannon');
+    sim.applyInput('g0', gunner(1));
+    steps(sim, 0.6);
+    expect(boat(sim, 1).status).toBe('sinking');
+    expect(views.update(sim.state)[1]).toMatchObject({ team: 1, followTeam: 0, killCam: true });
+    sim.debug.sink(0);
+    expect(views.update(sim.state)[1]).toMatchObject({ followTeam: 1, killCam: false });
+    boat(sim, 0).status = 'alive'; // as if the killer were back already: the cut stays
+    expect(views.update(sim.state)[1]).toMatchObject({ followTeam: 1, killCam: false });
+    steps(sim, RESPAWN.delaySec);
+    expect(boat(sim, 1).status).toBe('alive');
+    expect(views.update(sim.state)[1]).toMatchObject({ followTeam: 1, killCam: false });
+  });
 });

@@ -104,7 +104,9 @@ export class Crates {
   /** After the physics step: mirror positions, respawn collected crates, hand out pickups. */
   update(): void {
     const { state, map } = this.ctx;
-    state.crates.forEach((crate, i) => {
+    const crates = state.crates;
+    for (let i = 0; i < crates.length; i++) {
+      const crate = crates[i] as CrateState;
       const body = this.bodies[i];
       if (crate.active) {
         if (body) {
@@ -113,22 +115,23 @@ export class Crates {
           crate.z = -p.y;
           crate.yaw = body.rotation();
         }
-        return;
+        continue;
       }
       if (state.time >= crate.respawnAt) {
         const home = map.crates[i];
         if (home) this.home(crate, i, home.x, home.z);
       }
-    });
+    }
     if (!isLive(state)) return;
     for (const boat of state.boats) {
       if (!isTargetable(state, boat.team)) continue;
       hullObb(boat.pose, box);
-      state.crates.forEach((crate, i) => {
-        if (!crate.active) return;
+      for (let i = 0; i < crates.length; i++) {
+        const crate = crates[i] as CrateState;
+        if (!crate.active) continue;
         const touching = pointObbDistance(crate.x, crate.z, box) <= C.radius + 0.25 || Math.hypot(crate.x - boat.pose.x, crate.z - boat.pose.z) <= CRATES.pickupRadius;
         if (touching && this.give(boat.team, crate)) this.collect(crate, i);
-      });
+      }
     }
   }
 
@@ -270,7 +273,8 @@ export class Powers {
     const { state, map } = this.ctx;
     const t = state.time;
     const drag = Math.exp(-TUNING.mine.drag * dt);
-    for (const mine of [...state.mines]) {
+    // A copy because a trigger removes the mine; no copy on the usual step without mines.
+    for (const mine of state.mines.length ? [...state.mines] : state.mines) {
       const extra = this.mineExtra.get(mine.id);
       if (extra) {
         const nx = mine.x + extra.vx * dt;

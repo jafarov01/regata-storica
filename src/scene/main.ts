@@ -8,10 +8,9 @@
  *   10 Hz: Hud per phone, lobby roster on change, gate on phase change
  */
 import './scene.css';
-import type { CameraView, Layout } from '@shared/api.ts';
+import type { Layout } from '@shared/api.ts';
 import { NET } from '@shared/protocol.ts';
-import { SIM, TIERS } from '@shared/config.ts';
-import type { GameState } from '@shared/state.ts';
+import { SIM } from '@shared/config.ts';
 import { getMap } from '@shared/map.ts';
 import { SceneClient, publicJoinUrl } from '../net/sceneClient.ts';
 import { InputHold } from '../net/inputHold.ts';
@@ -21,7 +20,8 @@ import { createRenderer } from '../render/index.ts';
 import { computeLayout } from './layout.ts';
 import { KeyboardHarness } from './keyboard.ts';
 import { SceneHud, type HostAction, type HudInfo } from './hud.ts';
-import { buildHuds, forwardEvents } from './phoneFeed.ts';
+import { LobbySync, buildHuds, forwardEvents } from './phoneFeed.ts';
+import { CameraViews } from './views.ts';
 
 export async function startScene(root: HTMLElement): Promise<void> {
   root.innerHTML = `<div class="scene"><canvas class="gl"></canvas><div class="hud"></div></div>`;
@@ -33,6 +33,8 @@ export async function startScene(root: HTMLElement): Promise<void> {
   const sim = await createSim(map);
   const renderer = createRenderer(canvas, map);
   const hold = new InputHold();
+  const lobbySync = new LobbySync();
+  const cameraViews = new CameraViews();
   const shieldFlashUntil = new Map<number, number>();
   const info: HudInfo = {
     code: null,
@@ -92,11 +94,19 @@ export async function startScene(root: HTMLElement): Promise<void> {
         sim.addPlayer(p.pid, p.name);
         sim.setConnected(p.pid, p.connected);
       }
-      lastLobby = '';
+      lobbySync.invalidate();
     },
-    onJoined: (m) => sim.addPlayer(m.pid, m.name),
-    onReconnected: (m) => sim.addPlayer(m.pid, m.name),
+    // A rejoin into the same seat leaves the roster unchanged: resend it anyway, or the phone waits forever.
+    onJoined: (m) => {
+      sim.addPlayer(m.pid, m.name);
+      lobbySync.invalidate();
+    },
+    onReconnected: (m) => {
+      sim.addPlayer(m.pid, m.name);
+      lobbySync.invalidate();
+    },
     onLeft: (m) => {
+      lobbySync.invalidate();
       if (m.reason === 'disconnect') {
         sim.setConnected(m.pid, false);
         return;
@@ -152,15 +162,12 @@ export async function startScene(root: HTMLElement): Promise<void> {
   resize();
 
   // ---- 10 Hz: phone HUDs, roster on change, gate on phase change
-  let lastLobby = '';
   let lastGate = '';
   net.startHudLoop(() => buildHuds(sim.state, new Set(hold.droppedPids())));
   window.setInterval(() => {
-    const lobby = sim.lobbySnapshot();
-    const json = JSON.stringify(lobby);
-    if (json !== lastLobby && net.code) {
-      lastLobby = json;
-      net.sendLobby(lobby);
+    if (net.code) {
+      const lobby = lobbySync.take(sim.lobbySnapshot());
+      if (lobby) net.sendLobby(lobby);
     }
     const locked = sim.state.phase !== 'lobby';
     const gate = `${locked}`;
@@ -171,7 +178,7 @@ export async function startScene(root: HTMLElement): Promise<void> {
     info.canStart = sim.canStart();
     info.stale = new Set(hold.droppedPids());
     info.focus = keyboard.focus;
-    info.views = cameraViews(sim.state);
+    info.views = cameraViews.update(sim.state);
     hud.update(sim.state, layout, info);
   }, 100);
 
@@ -200,21 +207,8 @@ export async function startScene(root: HTMLElement): Promise<void> {
       layoutKey = key;
       layout = computeLayout(Math.max(1, teams), window.innerWidth, window.innerHeight);
     }
-    renderer.render(sim.state, events, layout, cameraViews(sim.state), acc / SIM.dt);
+    renderer.render(sim.state, events, layout, cameraViews.update(sim.state), acc / SIM.dt);
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
-}
-
-/**
- * One camera per team. While a boat is sunk the viewport follows the boat that
- * sank it (kill-cam, SPEC section 5) for the whole respawn delay.
- */
-export function cameraViews(state: GameState): CameraView[] {
-  return state.teams.map((t) => {
-    const boat = state.boats[t.index];
-    const killer = boat?.killerTeam;
-    const killCam = TIERS.killCam && !!boat && (boat.status === 'sinking' || boat.status === 'respawning') && killer !== null && killer !== undefined && !!state.boats[killer];
-    return { team: t.index, followTeam: killCam && killer !== null && killer !== undefined ? killer : t.index, killCam };
-  });
 }

@@ -46,7 +46,7 @@ All three are one Vite + TypeScript app. `src/main.ts` routes on `location.pathn
 3. `sim.drainEvents()` once; events go to the renderer (VFX, audio) and, through `forwardEvents`, to phones as `evt` cues.
 4. `renderer.render(state, events, layout, views, alpha)` with `alpha = acc / SIM.dt`; the renderer lerps `prevPose -> pose`.
 
-Every 100 ms (not per frame): one `Hud` per phone (`buildHuds`), the `Lobby` roster when it changed, the relay `gate` when the phase changed, and the DOM HUD update.
+Every 100 ms (not per frame): one `Hud` per phone (`buildHuds`), the `Lobby` roster when it changed or a phone joined, rejoined or left (`LobbySync`: a rejoin into the same seat changes nothing but the phone still needs it), the relay `gate` when the phase changed, and the DOM HUD update.
 
 Phone messages arrive asynchronously through `SceneClient`: inputs go through `InputHold.offer` (drops stale `seq`) into `sim.applyInput`; `swap / ready / calibrate / rename` go to `sim.applyMessage`; joins and leaves to `addPlayer / setConnected / removePlayer`.
 
@@ -73,7 +73,8 @@ Read-only for agents. A change is agreed out loud, made by one person, with `tes
 - **Reliable vs volatile.** Phone `in` and per-phone `hud`/`evt` delivery are volatile; everything fanned in to one socket in the same tick (inputs at the relay -> scene, HUD batch scene -> relay) is reliable. The reasoning is in `server/relay.ts` and `docs/research/netcode/final.md` 2.2.
 - **Identity.** Phones keep a token in localStorage (`src/net/identity.ts`); the same token rejoins the same slot and pid. The scene keeps its room code and scene token in sessionStorage, so a reload reclaims the room and the relay hands back its players.
 - **Feature flags.** Should/Stretch features check `TIERS` in `config.ts`, so a cut is a flag flip.
-- **Debug.** Every feature gets a keyboard or debug toggle. In dev builds the scene exposes `window.gr` (`gr.sim.state`, `gr.sim.debug.giveWeapon(0, 'cannon')`, `gr.hold`).
+- **Debug.** Every feature gets a keyboard or debug toggle. In dev builds the scene exposes `window.gr` (`gr.sim.state`, `gr.sim.debug.giveWeapon(0, 'cannon')`, `gr.sim.debug.endPhase()`, `gr.hold`).
+- **Crews.** Who holds what goes by the members aboard, not the lobby's team size (teams of 3 are balanced 3 + 2 + 2): without an Engineer (fewer than 3 members, or `TIERS.engineer` off) the Gunner holds the powers and the hull drains on its own (`hasEngineer` / `gunnerHasPowers` in `src/sim/ctx.ts`).
 
 ## 5. Module map and status
 
@@ -92,12 +93,13 @@ Read-only for agents. A change is agreed out loud, made by one person, with `tes
 | `src/landing/index.ts` | A | real | SCENE / PLAYER buttons |
 | `src/sim/index.ts` | B | real | `Sim`: step order, crew inputs, phase clock with sudden death, debug hooks; `createSim` is async (Rapier init) |
 | `src/sim/physics.ts`, `walls.ts`, `boat.ts`, `geom.ts` | B | real (physics research) | Rapier 2D world (sim.y = -world.z, angle = yaw), walls from `map.walls`, hull forces, keel, drift, ram detection |
-| `src/sim/roster.ts`, `rules.ts`, `items.ts`, `weapons.ts`, `bot.ts`, `tuning.ts` | B | real (rules research) | roster; hits, kills, respawn docks, ranking; crates, powers, mines; shots, Water Cannon stream, aim assist and locks; bots on a grid path; sim-only tunables |
+| `src/sim/roster.ts`, `rules.ts`, `items.ts`, `weapons.ts`, `bot.ts`, `tuning.ts`, `ctx.ts` | B | real (rules research) | roster (bot teams closed to phones, keyboard and bot seats never rebalanced); hits, kills, respawn docks, ranking; crates, powers, mines; shots, Water Cannon stream, aim assist and locks; bots on a grid path; sim-only tunables (incl. the steering multiplier); shared crew helpers |
 | `src/scene/main.ts` | B | real | wiring and the fixed-step loop |
 | `src/scene/layout.ts` | B | real | split-screen rects for 1 to 6 teams |
 | `src/scene/keyboard.ts` | B | real | every role from the keyboard, keyboard crews, bot teams |
 | `src/scene/hud.ts`, `scene.css` | B | real | lobby with QR, roster, host buttons and kick; timer, scoreboard, kill feed, minimap; per viewport weapon/ammo, powers, water bar, bow arrow, protection and Shield timers, crosshair states, Shield flash, SUNK and kill-cam; results with top Gunner and best ram |
-| `src/scene/phoneFeed.ts` | B | real | `Hud` per phone, `SimEvent` -> `Evt` |
+| `src/scene/phoneFeed.ts` | B | real | `Hud` per phone, `SimEvent` -> `Evt` (fired, hit, sunk, kill, shielded, respawn, pickup, power, rammed, countdown, start, win), `LobbySync` |
+| `src/scene/views.ts` | B | real | `CameraView` per team: kill-cam on the killer, ended for good if the killer sinks meanwhile |
 | `src/render/index.ts` | C | placeholder | `Renderer`: scissor viewports and camera rigs are real; buildings are blocks, water is flat, boats are boxes |
 
 ## 6. Where each track plugs in

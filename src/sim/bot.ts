@@ -9,12 +9,13 @@
  * crate, armed bots hunt the nearest enemy. The gunner turns at a human-like
  * rate and fires when lined up. Powers are used when they make sense.
  */
-import { BOOST, WATER_CANNON, type WeaponId } from '@shared/config.ts';
+import { BOOST, SIM, WATER_CANNON, type WeaponId } from '@shared/config.ts';
 import { DEG, clamp, makeRng, turnToward, wrapAngle } from '@shared/math.ts';
 import { yawFromDir, type ParsedMap } from '@shared/map.ts';
 import type { BoatState, GameState } from '@shared/state.ts';
 import type { HullInput } from './boat.ts';
 import { isLive } from './ctx.ts';
+import { isBotId } from './roster.ts';
 import { isTargetable } from './rules.ts';
 
 export interface BotFrame {
@@ -27,6 +28,7 @@ export interface BotFrame {
 }
 
 const FIRE_RANGE: Record<WeaponId, number> = { watercannon: WATER_CANNON.range - 1, cannon: 70, torpedo: 75, mortar: 55 };
+/** Gunner turn rate, rad/s (about a person turning a phone). */
 const AIM_RATE = 2.4;
 const GOAL_REFRESH = 1;
 const STUCK_SPEED = 1;
@@ -41,6 +43,8 @@ interface Brain {
   goalCol: number;
   goalRow: number;
   field: Int16Array | null;
+  /** Storage behind `field`, kept across goals so a replan allocates nothing. */
+  fieldBuf: Int16Array | null;
   nextGoalAt: number;
   stuckSince: number;
   reverseUntil: number;
@@ -52,11 +56,19 @@ interface Brain {
   nextPowerAt: number;
   /** Small per-bot aim error so bots miss sometimes. */
   aimError: number;
+  /** Reused every step: think() allocates nothing. */
+  frame: BotFrame;
 }
+
+/** Returned for boats that are not fighting; reset on every use. */
+const IDLE: BotFrame = { pilot: { steer: 0, gas: false, brake: false }, aimYaw: 0, fire: false, use: null, shake: 0 };
+const SLOTS = [0, 1] as const;
 
 export class Bots {
   private readonly brains = new Map<number, Brain>();
   private readonly rng = makeRng(7);
+  /** Breadth-first queue shared by every brain (one goal search at a time). */
+  private queue: Int32Array | null = null;
 
   constructor(private readonly map: ParsedMap) {}
 
@@ -67,13 +79,21 @@ export class Bots {
   /** A team is a bot team when every member is a bot. */
   static isBotTeam(state: GameState, team: number): boolean {
     const t = state.teams[team];
-    return !!t && t.members.length > 0 && t.members.every((id) => id.startsWith('bot-'));
+    return !!t && t.members.length > 0 && t.members.every(isBotId);
   }
 
   think(state: GameState, team: number, los: (ax: number, az: number, bx: number, bz: number) => boolean): BotFrame {
     const me = state.boats[team];
-    const idle: BotFrame = { pilot: { steer: 0, gas: false, brake: false }, aimYaw: me?.aimYaw ?? 0, fire: false, use: null, shake: 0 };
-    if (!me || me.status !== 'alive' || !isLive(state)) return idle;
+    if (!me || me.status !== 'alive' || !isLive(state)) {
+      IDLE.pilot.steer = 0;
+      IDLE.pilot.gas = false;
+      IDLE.pilot.brake = false;
+      IDLE.aimYaw = me?.aimYaw ?? 0;
+      IDLE.fire = false;
+      IDLE.use = null;
+      IDLE.shake = 0;
+      return IDLE;
+    }
     const brain = this.brain(team);
     const t = state.time;
 
@@ -89,7 +109,10 @@ export class Bots {
     }
 
     // ---- pilot: steer at the farthest point down the distance field the hull can see
-    const pilot: HullInput = { steer: 0, gas: false, brake: false };
+    const pilot: HullInput = brain.frame.pilot;
+    pilot.steer = 0;
+    pilot.gas = false;
+    pilot.brake = false;
     const target = this.lookahead(brain, me.pose.x, me.pose.z, los);
     if (target) {
       const want = yawFromDir(target.x - me.pose.x, target.z - me.pose.z);
@@ -138,18 +161,18 @@ export class Bots {
     let fire = false;
     if (enemy && (enemyVisible || me.weapon === 'mortar')) {
       const want = yawFromDir(enemy.pose.x - me.pose.x, enemy.pose.z - me.pose.z) + brain.aimError;
-      aimYaw = turnToward(me.aimYaw, want, AIM_RATE / 60);
+      aimYaw = turnToward(me.aimYaw, want, AIM_RATE * SIM.dt);
       const off = Math.abs(wrapAngle(want - me.aimYaw));
       fire = enemyDist <= FIRE_RANGE[me.weapon] && off < 6 * DEG;
       if (fire && this.rng() < 0.02) brain.aimError = (this.rng() - 0.5) * 6 * DEG;
     } else {
-      aimYaw = turnToward(me.aimYaw, me.pose.yaw, AIM_RATE / 60);
+      aimYaw = turnToward(me.aimYaw, me.pose.yaw, AIM_RATE * SIM.dt);
     }
 
     // ---- engineer: powers when they make sense, shake whenever there is water
     let use: 0 | 1 | null = null;
     if (t >= brain.nextPowerAt) {
-      for (const slot of [0, 1] as const) {
+      for (const slot of SLOTS) {
         const power = me.powers[slot];
         if (!power) continue;
         const ahead = enemy ? Math.abs(wrapAngle(yawFromDir(enemy.pose.x - me.pose.x, enemy.pose.z - me.pose.z) - me.pose.yaw)) : Math.PI;
@@ -167,13 +190,32 @@ export class Bots {
       }
     }
 
-    return { pilot, aimYaw, fire, use, shake: me.water > 0 ? 1 : 0 };
+    const out = brain.frame;
+    out.aimYaw = aimYaw;
+    out.fire = fire;
+    out.use = use;
+    out.shake = me.water > 0 ? 1 : 0;
+    return out;
   }
 
   private brain(team: number): Brain {
     let b = this.brains.get(team);
     if (!b) {
-      b = { goalCol: -1, goalRow: -1, field: null, nextGoalAt: 0, stuckSince: -1, reverseUntil: 0, reverseGas: false, stuckCount: 0, backing: false, nextPowerAt: 0, aimError: (this.rng() - 0.5) * 4 * DEG };
+      b = {
+        goalCol: -1,
+        goalRow: -1,
+        field: null,
+        fieldBuf: null,
+        nextGoalAt: 0,
+        stuckSince: -1,
+        reverseUntil: 0,
+        reverseGas: false,
+        stuckCount: 0,
+        backing: false,
+        nextPowerAt: 0,
+        aimError: (this.rng() - 0.5) * 4 * DEG,
+        frame: { pilot: { steer: 0, gas: false, brake: false }, aimYaw: 0, fire: false, use: null, shake: 0 },
+      };
       this.brains.set(team, b);
     }
     return b;
@@ -216,8 +258,9 @@ export class Bots {
     if (!m.isWater(col, row)) return;
     brain.goalCol = col;
     brain.goalRow = row;
-    const field = new Int16Array(m.width * m.height).fill(-1);
-    const queue = new Int32Array(m.width * m.height);
+    brain.fieldBuf ??= new Int16Array(m.width * m.height);
+    const field = brain.fieldBuf.fill(-1);
+    const queue = (this.queue ??= new Int32Array(m.width * m.height));
     let head = 0;
     let tail = 0;
     field[row * m.width + col] = 0;

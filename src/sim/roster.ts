@@ -1,9 +1,12 @@
 /**
  * src/sim/roster.ts: players, teams and roles in the lobby.
  *
- * Moved out of the baseline sim unchanged in behaviour: join order, balanced
- * team sizes (7 in threes = 3+2+2), role = index in the member list, swaps,
- * spectators beyond 18, keyboard and bot teams pinned to their index.
+ * Moved out of the baseline sim: join order, balanced team sizes (7 in
+ * threes = 3+2+2), role = index in the member list, swaps, spectators beyond
+ * 18, keyboard and bot teams pinned to their index. Bot teams are closed: a
+ * phone never takes a seat on a bot boat (the bot would stop driving), they
+ * count as one full team each when sizing the rest, and rebalancing never
+ * moves keyboard or bot seats.
  */
 import type { AddPlayerOptions } from '@shared/api.ts';
 import { MATCH } from '@shared/config.ts';
@@ -14,6 +17,15 @@ import { ROLES } from '@shared/state.ts';
 import { newBoat, newTeam } from './ctx.ts';
 
 const ROLE_INDEX: Record<Role, number> = { pilot: 0, gunner: 1, engineer: 2 };
+
+/** Bot seats are named 'bot-<n>' (GameSim.debug.addBotTeam); src/sim/bot.ts uses the same rule. */
+export function isBotId(id: string): boolean {
+  return id.startsWith('bot-');
+}
+
+function isClosed(t: TeamState): boolean {
+  return t.members.some(isBotId);
+}
 
 export class Roster {
   readonly joinOrder: string[] = [];
@@ -107,6 +119,12 @@ export class Roster {
   setTeamSize(size: 2 | 3): void {
     if (this.state.phase !== 'lobby' || size === this.state.teamSize) return;
     this.state.teamSize = size;
+    // Keyboard crews and bots keep their team index; everyone else is seated again in join order.
+    const pinned = new Map<string, number>();
+    for (const id of this.joinOrder) {
+      const p = this.state.players[id];
+      if (p?.virtual && p.team >= 0) pinned.set(id, p.team);
+    }
     for (const t of this.state.teams) t.members = [];
     this.state.teams = [];
     this.state.boats = [];
@@ -115,7 +133,11 @@ export class Roster {
       if (p) p.team = -1;
     }
     this.state.spectators = [];
-    for (const id of this.joinOrder) this.seatNewcomer(id);
+    for (const [id, team] of pinned) {
+      this.ensureTeams(team + 1);
+      this.placeInTeam(id, team);
+    }
+    for (const id of this.joinOrder) if (!pinned.has(id)) this.seatNewcomer(id);
     this.syncRoles();
   }
 
@@ -161,9 +183,13 @@ export class Roster {
     }
   }
 
-  /** Team count for n players: min(6, ceil(n / size)). */
+  /** Team count for n players on open teams: min(6, bot teams + ceil(n / size)). */
   private targetTeams(n: number): number {
-    return Math.min(MATCH.maxTeams, Math.ceil(n / this.state.teamSize));
+    return Math.min(MATCH.maxTeams, this.botTeams() + Math.ceil(n / this.state.teamSize));
+  }
+
+  private botTeams(): number {
+    return this.state.teams.reduce((n, t) => n + (isClosed(t) ? 1 : 0), 0);
   }
 
   /** Keyboard crews and bots ask for a team explicitly; rebalancing never dissolves those teams. */
@@ -173,14 +199,15 @@ export class Roster {
     return n;
   }
 
+  /** Players on open (non-bot) teams. */
   private seated(): number {
-    return this.state.teams.reduce((n, t) => n + t.members.length, 0);
+    return this.state.teams.reduce((n, t) => n + (isClosed(t) ? 0 : t.members.length), 0);
   }
 
   private seatNewcomer(id: string): void {
     const p = this.state.players[id];
     if (!p) return;
-    const capacity = MATCH.maxTeams * this.state.teamSize;
+    const capacity = (MATCH.maxTeams - this.botTeams()) * this.state.teamSize;
     if (this.seated() >= capacity) {
       this.state.spectators.push(id);
       return;
@@ -188,6 +215,7 @@ export class Roster {
     this.ensureTeams(Math.max(this.targetTeams(this.seated() + 1), this.pinnedTeams()));
     let best: TeamState | null = null;
     for (const t of this.state.teams) {
+      if (isClosed(t)) continue;
       if (t.members.length < this.state.teamSize && (!best || t.members.length < best.members.length)) best = t;
     }
     if (!best) {
@@ -213,18 +241,28 @@ export class Roster {
         this.seatNewcomer(id);
       }
     }
-    if (teams.length === 0) return;
-    const base = Math.floor(n / teams.length);
-    const extra = n % teams.length;
+    // Balance the open teams only; keyboard and bot seats never move.
+    const open = teams.filter((t) => !isClosed(t));
+    if (open.length === 0) return;
+    const base = Math.floor(n / open.length);
+    const extra = n % open.length;
     const target = (i: number): number => base + (i < extra ? 1 : 0);
+    const movable = (t: TeamState): string | undefined => {
+      let latest: string | undefined;
+      for (const id of t.members) {
+        if (this.state.players[id]?.virtual) continue;
+        if (latest === undefined || this.joinOrder.indexOf(id) > this.joinOrder.indexOf(latest)) latest = id;
+      }
+      return latest;
+    };
     for (let guard = 0; guard < 36; guard++) {
-      const big = teams.findIndex((t, i) => t.members.length > target(i));
-      const small = teams.findIndex((t, i) => t.members.length < target(i));
+      const big = open.findIndex((t, i) => t.members.length > target(i) && movable(t) !== undefined);
+      const small = open.findIndex((t, i) => t.members.length < target(i));
       if (big < 0 || small < 0) break;
-      const from = teams[big];
-      const to = teams[small];
+      const from = open[big];
+      const to = open[small];
       if (!from || !to) break;
-      const latest = [...from.members].sort((a, b) => this.joinOrder.indexOf(b) - this.joinOrder.indexOf(a))[0];
+      const latest = movable(from);
       if (latest === undefined) break;
       from.members = from.members.filter((m) => m !== latest);
       to.members.push(latest);
