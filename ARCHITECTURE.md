@@ -90,11 +90,13 @@ Read-only for agents. A change is agreed out loud, made by one person, with `tes
 | `src/phone/sender.ts`, `controller.ts` | A | real | 30 Hz sampler with running totals; wires sensors, pads and sender |
 | `src/phone/main.ts`, `phone.css` | A | baseline | join screen, lobby, Enable controls; screens follow the match phase; role pads with wheel / compass / water meter; status strip |
 | `src/landing/index.ts` | A | real | SCENE / PLAYER buttons |
-| `src/sim/index.ts` | B | placeholder | `Sim` with real roster, match flow, input holding and aim; kinematic boats with a grid wall check; placeholder Water Cannon; no crates, kills or respawn yet |
+| `src/sim/index.ts` | B | real | `Sim`: step order, crew inputs, phase clock with sudden death, debug hooks; `createSim` is async (Rapier init) |
+| `src/sim/physics.ts`, `walls.ts`, `boat.ts`, `geom.ts` | B | real (physics research) | Rapier 2D world (sim.y = -world.z, angle = yaw), walls from `map.walls`, hull forces, keel, drift, ram detection |
+| `src/sim/roster.ts`, `rules.ts`, `items.ts`, `weapons.ts`, `bot.ts`, `tuning.ts` | B | real (rules research) | roster; hits, kills, respawn docks, ranking; crates, powers, mines; shots, Water Cannon stream, aim assist and locks; bots on a grid path; sim-only tunables |
 | `src/scene/main.ts` | B | real | wiring and the fixed-step loop |
 | `src/scene/layout.ts` | B | real | split-screen rects for 1 to 6 teams |
 | `src/scene/keyboard.ts` | B | real | every role from the keyboard, keyboard crews, bot teams |
-| `src/scene/hud.ts`, `scene.css` | B | baseline | lobby with QR and roster, timer, scoreboard, viewport labels, crosshair, countdown, results |
+| `src/scene/hud.ts`, `scene.css` | B | real | lobby with QR, roster, host buttons and kick; timer, scoreboard, kill feed, minimap; per viewport weapon/ammo, powers, water bar, bow arrow, protection and Shield timers, crosshair states, Shield flash, SUNK and kill-cam; results with top Gunner and best ram |
 | `src/scene/phoneFeed.ts` | B | real | `Hud` per phone, `SimEvent` -> `Evt` |
 | `src/render/index.ts` | C | placeholder | `Renderer`: scissor viewports and camera rigs are real; buildings are blocks, water is flat, boats are boxes |
 

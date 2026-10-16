@@ -177,3 +177,204 @@
   color: var(--team);
   font-size: 1.3em;
 }
+
+/* ---- B7: per-viewport HUD, kill feed, minimap. B8: host buttons. ---- */
+.host-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0;
+}
+.host-buttons button,
+.roster .kick {
+  pointer-events: auto;
+  cursor: pointer;
+  font: 700 0.9em var(--font);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+.host-buttons button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #111;
+}
+.host-buttons button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.roster .kick {
+  padding: 0 6px;
+  margin-left: 4px;
+  font-size: 0.7em;
+  border-width: 1px;
+  opacity: 0.6;
+}
+.roster .kick:hover {
+  opacity: 1;
+  border-color: var(--danger);
+}
+.top-bar .sd {
+  color: var(--danger);
+  font-weight: 900;
+}
+.top-bar .timer.late {
+  color: var(--danger);
+}
+.top-bar .score.out {
+  opacity: 0.35;
+}
+.kill-feed {
+  position: absolute;
+  top: 2.6em;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.8em;
+  z-index: 2;
+}
+.kill-feed > div {
+  padding: 2px 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+}
+.kill-feed[hidden],
+.minimap[hidden] {
+  display: none;
+}
+.minimap {
+  position: absolute;
+  border: 3px solid rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  z-index: 2;
+}
+.cells .bl,
+.cells .br,
+.cells .bc {
+  position: absolute;
+  bottom: 10px;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 6px;
+}
+.cells .bl {
+  left: 8px;
+}
+.cells .bl .ammo {
+  font-size: 1.4em;
+  margin-left: 6px;
+}
+.cells .br {
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cells .power {
+  padding: 2px 8px;
+  border: 2px solid #3a8fff;
+  border-radius: 6px;
+  font-size: 0.85em;
+}
+.cells .power.empty {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.35);
+}
+.cells .water {
+  width: 5em;
+  height: 0.7em;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cells .water i {
+  display: block;
+  height: 100%;
+  background: #3a8fff;
+}
+.cells .bc {
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cells .bow {
+  font-size: 1.2em;
+  color: var(--team);
+  line-height: 1;
+}
+.cells .protect {
+  color: #9fe7ff;
+  font-weight: 700;
+}
+.cells .shield {
+  color: #6fb6ff;
+  font-weight: 700;
+}
+.cells .boost {
+  color: var(--accent);
+  font-weight: 800;
+}
+.cells .crosshair.enemy {
+  border-color: var(--danger);
+  border-radius: 2px;
+  transform: rotate(45deg) scale(0.8);
+}
+.cells .crosshair.hit {
+  border: none;
+}
+.cells .crosshair.hit::before,
+.cells .crosshair.hit::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 4px;
+  height: 36px;
+  margin-left: -2px;
+  background: #fff;
+  transform: rotate(45deg);
+}
+.cells .crosshair.hit::after {
+  transform: rotate(-45deg);
+}
+.cells .crosshair.lock {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 6px rgba(224, 74, 58, 0.45);
+}
+.cells .flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.cells .shield-flash {
+  background: rgba(70, 150, 255, 0.35);
+}
+.cells .sunk {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  text-shadow: 0 2px 8px #000;
+}
+.cells .sunk-title {
+  font-size: 2em;
+  font-weight: 900;
+}
+.cells .sunk-count {
+  font-size: 3em;
+  font-weight: 900;
+  color: var(--accent);
+}
+.centre .results .host-buttons {
+  justify-content: center;
+}

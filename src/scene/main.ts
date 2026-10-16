@@ -10,7 +10,8 @@
 import './scene.css';
 import type { CameraView, Layout } from '@shared/api.ts';
 import { NET } from '@shared/protocol.ts';
-import { SIM } from '@shared/config.ts';
+import { SIM, TIERS } from '@shared/config.ts';
+import type { GameState } from '@shared/state.ts';
 import { getMap } from '@shared/map.ts';
 import { SceneClient, publicJoinUrl } from '../net/sceneClient.ts';
 import { InputHold } from '../net/inputHold.ts';
@@ -19,7 +20,7 @@ import { createSim } from '../sim/index.ts';
 import { createRenderer } from '../render/index.ts';
 import { computeLayout } from './layout.ts';
 import { KeyboardHarness } from './keyboard.ts';
-import { SceneHud, type HudInfo } from './hud.ts';
+import { SceneHud, type HostAction, type HudInfo } from './hud.ts';
 import { buildHuds, forwardEvents } from './phoneFeed.ts';
 
 export async function startScene(root: HTMLElement): Promise<void> {
@@ -31,9 +32,51 @@ export async function startScene(root: HTMLElement): Promise<void> {
   const map = getMap();
   const sim = await createSim(map);
   const renderer = createRenderer(canvas, map);
-  const hud = new SceneHud(hudRoot);
   const hold = new InputHold();
-  const info: HudInfo = { code: null, joinUrl: null, urlLooksLocal: false, link: 'Connecting to the relay...', canStart: sim.canStart(), stale: new Set(), focus: 0 };
+  const shieldFlashUntil = new Map<number, number>();
+  const info: HudInfo = {
+    code: null,
+    joinUrl: null,
+    urlLooksLocal: false,
+    link: 'Connecting to the relay...',
+    canStart: sim.canStart(),
+    stale: new Set(),
+    focus: 0,
+    views: [],
+    shieldFlashUntil,
+  };
+  // Host buttons on the big screen; the keyboard keys do the same (B8).
+  const onAction = (action: HostAction, pid?: string): void => {
+    switch (action) {
+      case 'start':
+        if (sim.state.phase === 'lobby') sim.start();
+        break;
+      case 'teamSize':
+        sim.setTeamSize(sim.state.teamSize === 3 ? 2 : 3);
+        break;
+      case 'addBot':
+        sim.debug.addBotTeam();
+        break;
+      case 'addKeyboard':
+        addKeyboardCrew();
+        break;
+      case 'rematch':
+        if (sim.state.phase === 'results') sim.rematch();
+        break;
+      case 'newLobby':
+        sim.newLobby();
+        break;
+      case 'kick': {
+        const p = pid ? sim.state.players[pid] : undefined;
+        if (!p || !pid) break;
+        // Phones go through the relay (it confirms with `left`); keyboard and bot seats live only here.
+        if (p.virtual) sim.removePlayer(pid);
+        else net.kick(pid);
+        break;
+      }
+    }
+  };
+  const hud = new SceneHud(hudRoot, map, onAction);
 
   const net = new SceneClient({
     onLink: (state, detail) => {
@@ -71,6 +114,14 @@ export async function startScene(root: HTMLElement): Promise<void> {
   });
 
   let kbCrews = 0;
+  const addKeyboardCrew = (): void => {
+    if (sim.state.phase !== 'lobby' || sim.state.teams.length >= 6) return;
+    const team = sim.state.teams.length;
+    kbCrews += 1;
+    sim.addPlayer(`kb-${kbCrews}-pilot`, `Keys ${kbCrews}P`, { virtual: true, team, role: 'pilot' });
+    sim.addPlayer(`kb-${kbCrews}-gunner`, `Keys ${kbCrews}G`, { virtual: true, team, role: 'gunner' });
+    keyboard.focus = team;
+  };
   const keyboard = new KeyboardHarness(sim, {
     start: () => {
       if (sim.state.phase === 'lobby') sim.start();
@@ -78,14 +129,7 @@ export async function startScene(root: HTMLElement): Promise<void> {
     },
     pause: () => sim.pause(!sim.state.paused),
     toLobby: () => sim.newLobby(),
-    addKeyboardCrew: () => {
-      if (sim.state.phase !== 'lobby' || sim.state.teams.length >= 6) return;
-      const team = sim.state.teams.length;
-      kbCrews += 1;
-      sim.addPlayer(`kb-${kbCrews}-pilot`, `Keys ${kbCrews}P`, { virtual: true, team, role: 'pilot' });
-      sim.addPlayer(`kb-${kbCrews}-gunner`, `Keys ${kbCrews}G`, { virtual: true, team, role: 'gunner' });
-      keyboard.focus = team;
-    },
+    addKeyboardCrew,
     addBotTeam: () => void sim.debug.addBotTeam(),
     toggleTeamSize: () => sim.setTeamSize(sim.state.teamSize === 3 ? 2 : 3),
   });
@@ -127,6 +171,7 @@ export async function startScene(root: HTMLElement): Promise<void> {
     info.canStart = sim.canStart();
     info.stale = new Set(hold.droppedPids());
     info.focus = keyboard.focus;
+    info.views = cameraViews(sim.state);
     hud.update(sim.state, layout, info);
   }, 100);
 
@@ -147,6 +192,7 @@ export async function startScene(root: HTMLElement): Promise<void> {
     if (steps === SIM.maxStepsPerFrame) acc = 0; // spiral-of-death guard
     const events = sim.drainEvents();
     forwardEvents(sim.state, events, (pid, evt) => net.sendEvt(pid, evt));
+    for (const e of events) if (e.kind === 'shielded') shieldFlashUntil.set(e.team, now + 450);
 
     const teams = sim.state.teams.length;
     const key = `${teams}:${window.innerWidth}x${window.innerHeight}`;
@@ -154,9 +200,21 @@ export async function startScene(root: HTMLElement): Promise<void> {
       layoutKey = key;
       layout = computeLayout(Math.max(1, teams), window.innerWidth, window.innerHeight);
     }
-    const views: CameraView[] = sim.state.teams.map((t) => ({ team: t.index, followTeam: t.index, killCam: false }));
-    renderer.render(sim.state, events, layout, views, acc / SIM.dt);
+    renderer.render(sim.state, events, layout, cameraViews(sim.state), acc / SIM.dt);
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
+}
+
+/**
+ * One camera per team. While a boat is sunk the viewport follows the boat that
+ * sank it (kill-cam, SPEC section 5) for the whole respawn delay.
+ */
+export function cameraViews(state: GameState): CameraView[] {
+  return state.teams.map((t) => {
+    const boat = state.boats[t.index];
+    const killer = boat?.killerTeam;
+    const killCam = TIERS.killCam && !!boat && (boat.status === 'sinking' || boat.status === 'respawning') && killer !== null && killer !== undefined && !!state.boats[killer];
+    return { team: t.index, followTeam: killCam && killer !== null && killer !== undefined ? killer : t.index, killCam };
+  });
 }

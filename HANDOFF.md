@@ -14,7 +14,7 @@ Updated 2026-10-16 (base phase finished). Read this first, then `ARCHITECTURE.md
 | Relay | Real, from the netcode research: rooms, reconnect, rate limits, SPA fallback, health | `server/` |
 | Net clients | Real: phone client, scene client, input hold and aim tracker, identity, QR, scanner | `src/net/` |
 | Phone | Real sensor stack from the sensors research; join, lobby, Enable controls; role screens follow the match phase: Pilot wheel + BRAKE/GAS, Gunner compass + RECENTER/FIRE (+ P1/P2 in teams of 2), Engineer two powers + water meter | `src/phone/` |
-| Sim | Placeholder behind the real `Sim` interface: real roster, match flow, inputs, aim; kinematic boats; a placeholder Water Cannon (push and fill, never kills); no crates, kills or respawn yet | `src/sim/index.ts` |
+| Sim | Real (Track B, B1-B10): Rapier boats, crates, Water Cannon / Cannon / Torpedo / Mortar, kills, sinking, respawn, protection, Shield, Mine, Boost and rams, bailing, sudden death, bots that play | `src/sim/` |
 | Scene | Real loop, layout, keyboard harness, phone HUD feed; baseline big-screen HUD | `src/scene/` |
 | Renderer | Placeholder behind the real `Renderer` interface: real viewports and camera rigs; block buildings, flat water, box boats | `src/render/index.ts` |
 | Tests | 59 passing: contracts, relay and rooms, sensor math and sender, baseline sim/layout/feed. `npm run check` green | `tests/`, `src/phone/sensorMath.test.ts` |
@@ -63,8 +63,7 @@ To pull a file out of a transcript: `grep -o '"name":"Write","input":{"file_path
 ## 5. Known gaps
 
 - Real phones are untested (Gate 1).
-- `src/sim/index.ts` has no weapons, crates pickup, kills, sinking, respawn, spawn protection, sudden death or bots beyond a circling pilot.
-- The big-screen HUD lacks weapon/ammo, powers, water bar, bow arrow, protection timer, kill-cam, kill feed and minimap.
+- Steering may feel slow in the narrow canals: with `BOAT.steerTorqueBase` 900 the boat turns 0.27 rad/s at rest and 0.94 rad/s at 9 m/s (measured; the physics research used 0.5 and 1.3). First thing to tune at Gate 2.
 - The renderer is boxes; no assets in `public/assets/` yet.
 - The phone screens are functional, not designed: no wheel graphic, no compass needle, no Engineer meter.
 
