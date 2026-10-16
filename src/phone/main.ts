@@ -66,6 +66,13 @@ function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 const NO_MOTION = 'No motion sensors. Open the https link from the QR and allow motion access (or add ?sim=1 on a desktop).';
+/**
+ * iOS Safari can resolve the motion permission before the player answers its prompt, so the
+ * watchdog finds no events while the prompt is still on screen. Ask for Allow first; only call
+ * the sensors missing once this grace period has passed without a single event.
+ */
+const WAITING_MOTION = 'Waiting for motion access. If Safari asks, tap Allow.';
+const MOTION_GRACE_MS = 10_000;
 const SENSORS_STOPPED = 'The motion sensors stopped. Tap to resume controls.';
 
 interface Me {
@@ -262,6 +269,8 @@ function runRoom(root: HTMLElement, room: string): void {
   /** Motion data arrived at least once on this page: a later silence is a stall, not "no sensors". */
   let sawMotion = false;
   let stallRestarts = 0;
+  let enabledAt = 0;
+  let noMotionTimer: number | null = null;
   // Link state for the warning line, kept here (the client calls onLink from its own constructor).
   let sceneOnline = false;
   let lastHudAt = 0;
@@ -650,6 +659,7 @@ function runRoom(root: HTMLElement, room: string): void {
   function enable(): void {
     if (controller || enabling) return;
     enabling = true;
+    enabledAt = performance.now();
     enableBtn.disabled = true;
     void startController({
       role: me.role,
@@ -660,8 +670,21 @@ function runRoom(root: HTMLElement, room: string): void {
         if (health === 'ok') {
           sawMotion = true;
           stallRestarts = 0;
-          if (message === NO_MOTION || message === SENSORS_STOPPED) say('');
-        } else if (health === 'no-events' && !sawMotion) say(NO_MOTION);
+          if (noMotionTimer !== null) window.clearTimeout(noMotionTimer);
+          noMotionTimer = null;
+          if (message === NO_MOTION || message === WAITING_MOTION || message === SENSORS_STOPPED) say('');
+        } else if (health === 'no-events' && !sawMotion) {
+          const left = MOTION_GRACE_MS - (performance.now() - enabledAt);
+          if (left <= 0) say(NO_MOTION);
+          else {
+            say(WAITING_MOTION);
+            if (noMotionTimer !== null) window.clearTimeout(noMotionTimer);
+            noMotionTimer = window.setTimeout(() => {
+              noMotionTimer = null;
+              if (!sawMotion && message === WAITING_MOTION) say(NO_MOTION);
+            }, left);
+          }
+        }
         else if (health === 'stalled' || health === 'no-events') onSensorsStalled();
       },
       onOrientation: (isLandscape) => {
