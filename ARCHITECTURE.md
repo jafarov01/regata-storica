@@ -81,14 +81,14 @@ Read-only for agents. A change is agreed out loud, made by one person, with `tes
 
 | Path | Track | Status | What it is |
 |---|---|---|---|
-| `server/relay.ts`, `rooms.ts`, `index.ts` | A | real (netcode research, 16 tests) | Socket.IO relay, room registry, express static + SPA fallback, `/api/health` |
-| `src/net/client.ts` | A | real | phone socket: hello, reconnect after sleep, `sendInput` |
+| `server/relay.ts`, `rooms.ts`, `index.ts` | A | real (netcode research) | Socket.IO relay, room registry, express static + SPA fallback, `/api/health`, `/api/rooms/:code` (exists / full / locked, for the join screen) |
+| `src/net/client.ts` | A | real | phone socket: hello, fast reconnect on wake / `pageshow`, half-open detection from HUD silence, halt after kicked / replaced / closed, `sendInput` |
 | `src/net/sceneClient.ts` | A | real | scene socket: host/reclaim room, HUD loop, lobby, gate |
 | `src/net/inputHold.ts` | A/B | real | seq filter, stale detection, `AimTracker` (aim re-basing, fire/power tap counters) |
 | `src/net/identity.ts`, `qr.ts`, `scanner.ts` | A | real | token and nickname, join QR, fallback in-app scanner |
 | `src/phone/sensors.ts`, `sensorMath.ts`, `sensorSim.ts`, `pads.ts`, `wake.ts` | A | real (sensors research, 21 tests) | permission flow, steering from gravity, gyro yaw, shake, multi-touch pads, wake lock, desktop simulator (`?sim=1`) |
 | `src/phone/sender.ts`, `controller.ts` | A | real | 30 Hz sampler with running totals; wires sensors, pads and sender |
-| `src/phone/main.ts`, `phone.css` | A | baseline | join screen, lobby, Enable controls; screens follow the match phase; role pads with wheel / compass / water meter; status strip |
+| `src/phone/main.ts`, `screens.ts`, `view.ts`, `phone.css` | A | real | join screen (code probe), lobby, Enable controls; `view.ts` decides the layer (lobby, pads, resume, spectate, rotate, error panel) and the error texts, pure and tested; role pads with wheel / compass / water meter, SUNK and results; team colour, large role name, haptics; status strip and link warning |
 | `src/landing/index.ts` | A | real | SCENE / PLAYER buttons |
 | `src/sim/index.ts` | B | real | `Sim`: step order, crew inputs, phase clock with sudden death, debug hooks; `createSim` is async (Rapier init) |
 | `src/sim/physics.ts`, `walls.ts`, `boat.ts`, `geom.ts` | B | real (physics research) | Rapier 2D world (sim.y = -world.z, angle = yaw), walls from `map.walls`, hull forces, keel, drift, ram detection |
@@ -130,7 +130,7 @@ These are fixed unless the team agrees otherwise out loud.
 
 | How | What it covers |
 |---|---|
-| `npm test` | contracts (map, math), relay and rooms (real sockets), sensor math and sender, baseline sim/layout/feed |
+| `npm test` | contracts (map, math), relay and rooms (real sockets), sensor math and sender, phone screen logic (`tests/phone.test.ts`), sim/layout/feed |
 | `npm run check` | typecheck (browser and server configs), tests, production build. CI runs the same |
 | Keyboard harness on `/scene` | K adds a keyboard crew, O a bot team, Enter starts; WASD, arrows, Space, R, Q/E |
 | `/play?room=CODE&sim=1` on a desktop | the full phone pipeline with simulated sensors (A/D tilt, arrows turn, Space shake) |

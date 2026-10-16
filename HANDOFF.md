@@ -13,11 +13,11 @@ Updated 2026-10-16 (base phase finished). Read this first, then `ARCHITECTURE.md
 | Contracts | `config`, `state`, `protocol`, `api`, `map`, `math`. Protocol merged with the netcode research; boat mass settled; `BoatStatus 'out'` added | `shared/` |
 | Relay | Real, from the netcode research: rooms, reconnect, rate limits, SPA fallback, health | `server/` |
 | Net clients | Real: phone client, scene client, input hold and aim tracker, identity, QR, scanner | `src/net/` |
-| Phone | Real sensor stack from the sensors research; join, lobby, Enable controls; role screens follow the match phase: Pilot wheel + BRAKE/GAS, Gunner compass + RECENTER/FIRE (+ P1/P2 in teams of 2), Engineer two powers + water meter | `src/phone/` |
+| Phone | Real sensor stack from the sensors research; join (code checked against the relay), lobby with team and role in large type, Enable controls; role screens follow the match phase: Pilot wheel + BRAKE/GAS, Gunner compass + RECENTER/FIRE (+ P1/P2 in teams of 2), Engineer two powers + water meter; SUNK and results screens; team-colour background, haptics / red flash, rotate overlay; error panel for wrong code, full room, kicked, another tab; resume after reload or lock (code; real-phone test pending) | `src/phone/` |
 | Sim | Real (Track B, B1-B10): Rapier boats, crates, Water Cannon / Cannon / Torpedo / Mortar, kills, sinking, respawn, protection, Shield, Mine, Boost and rams, bailing, sudden death, bots that play | `src/sim/` |
 | Scene | Real loop, layout, keyboard harness, phone HUD feed; baseline big-screen HUD | `src/scene/` |
 | Renderer | Placeholder behind the real `Renderer` interface: real viewports and camera rigs; block buildings, flat water, box boats | `src/render/index.ts` |
-| Tests | 59 passing: contracts, relay and rooms, sensor math and sender, baseline sim/layout/feed. `npm run check` green | `tests/`, `src/phone/sensorMath.test.ts` |
+| Tests | 104 passing: contracts, relay and rooms, sensor math and sender, phone screen logic, input hold tap counters, sim/layout/feed. `npm run check` green | `tests/`, `src/phone/sensorMath.test.ts` |
 | Research | All six write-ups final (netcode and render finished from their drafts), with code and every agent transcript | `docs/research/` |
 
 ## 2. Run it
@@ -65,7 +65,10 @@ To pull a file out of a transcript: `grep -o '"name":"Write","input":{"file_path
 - Real phones are untested (Gate 1).
 - Steering may feel slow in the narrow canals: with `BOAT.steerTorqueBase` 900 the boat turns 0.27 rad/s at rest and 0.94 rad/s at 9 m/s (measured; the physics research used 0.5 and 1.3). First thing to tune at Gate 2.
 - The renderer is boxes; no assets in `public/assets/` yet.
-- The phone screens are functional, not designed: no wheel graphic, no compass needle, no Engineer meter.
+- Phone screens have the wheel, compass needle and Engineer meter as CSS shapes, not drawn art. Vibration, the 30 s lock/unlock resume and the fallback scanner are written but untested on real phones.
+- Phones only learn the winner from the volatile `Evt win`, and the results screen shows only their own team's score: `Hud` has no scoreboard (a `shared/protocol.ts` change if wanted).
+- A phone that drops off the network keeps its last input in the sim (a Pilot holding GAS keeps driving until it reconnects); `src/sim` could coast a player whose `connected` is false or whose `lastInputAt` is older than `NET.inputStaleMs`. Track B.
+- The Gunner's "shot landed" flash needs `src/scene/phoneFeed.ts` to send `Evt hit` with `detail: 'landed'` to the shooter's Gunner (the phone side is ready).
 
 ## 6. Prompt starter for an agent chat
 

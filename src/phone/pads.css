@@ -73,14 +73,26 @@ body {
   display: grid;
 }
 
+/* wake.ts flash(): hit = strong red, fire = short soft red. Apply to a full-screen overlay. */
 .flash-red {
-  animation: flash-red 220ms ease-out;
+  animation: flash-red 260ms ease-out;
+}
+.flash-red-soft {
+  animation: flash-red-soft 120ms ease-out;
 }
 @keyframes flash-red {
   from {
-    box-shadow: inset 0 0 0 100vmax rgba(255, 0, 0, 0.75);
+    background: rgba(255, 0, 0, 0.7);
   }
   to {
-    box-shadow: inset 0 0 0 100vmax rgba(255, 0, 0, 0);
+    background: rgba(255, 0, 0, 0);
+  }
+}
+@keyframes flash-red-soft {
+  from {
+    background: rgba(255, 40, 40, 0.32);
+  }
+  to {
+    background: rgba(255, 40, 40, 0);
   }
 }

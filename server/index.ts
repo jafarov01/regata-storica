@@ -12,6 +12,7 @@ import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeRoomCode } from '@shared/protocol.ts';
 import { createRelay } from './relay.ts';
 
 // Dev: RELAY_PORT (default 3000; Vite proxies to it). Production hosts (Render, Railway, Fly) set PORT.
@@ -45,6 +46,17 @@ app.get('/api/health', (_req, res) => {
     sockets: relay.io.engine.clientsCount,
     dist: existsSync(INDEX),
   });
+});
+
+// The join screen checks a typed code before it navigates, so a typo gets a clear answer at once.
+// Only existence, full and locked: codes are printed on the projector anyway.
+app.get('/api/rooms/:code', (req, res) => {
+  const code = normalizeRoomCode(String(req.params['code'] ?? ''));
+  if (!code) {
+    res.status(400).json({ ok: false, error: 'bad_code' });
+    return;
+  }
+  res.set('Cache-Control', 'no-store').json({ ok: true, code, ...relay.registry.probe(code) });
 });
 
 if (existsSync(INDEX)) {

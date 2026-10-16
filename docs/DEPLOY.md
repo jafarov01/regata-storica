@@ -29,7 +29,7 @@ The repo has a `render.yaml` blueprint: one Node web service that runs `npm ci &
 Notes:
 - The free plan sleeps after 15 minutes without traffic; open the URL a minute before the demo. WebSockets work on all plans.
 - Rooms live in memory: a redeploy closes every room. Do not push to `main` during the demo.
-- Check it is up: `curl https://<service>.onrender.com/api/health` returns `{"ok":true,...}`.
+- Check it is up: `curl https://<service>.onrender.com/api/health` returns `{"ok":true,...}`. `GET /api/rooms/<CODE>` says whether a room exists (the phone join form uses it).
 
 ## When the scene runs on localhost but phones use another address
 

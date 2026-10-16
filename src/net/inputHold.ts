@@ -69,7 +69,8 @@ export class InputHold {
 export class AimTracker {
   private base = 0;
   private ep = -1;
-  private lastFc = 0;
+  /** -1 until the first packet: a counter is only a tap relative to one we have already seen. */
+  private lastFc = -1;
   private lastUc = -1;
   private lastSeq = -1;
 
@@ -98,15 +99,30 @@ export class AimTracker {
 
   /** True once per fire tap even if the packet carrying `fire: true` was lost. */
   takeFireTap(pkt: GunnerIn): boolean {
-    if (pkt.fc === this.lastFc) return false;
+    const last = this.lastFc;
     this.lastFc = pkt.fc;
-    return true;
+    return counterTapped(last, pkt.fc);
   }
 
   /** Engineer power use, applied exactly once per tap. */
   takeUse(uc: number, use: 0 | 1 | null): 0 | 1 | null {
-    if (uc === this.lastUc || use === null) return null;
+    const last = this.lastUc;
     this.lastUc = uc;
-    return use;
+    return use !== null && counterTapped(last, uc) ? use : null;
   }
+}
+
+/**
+ * Did a running tap counter (`fc`, `uc`) move since `last`? `last` is -1 before the first packet.
+ *
+ * First packet: a fresh phone starts at 0, so 1 is its first tap. A larger value means the
+ * counter was already running before this tracker existed (scene reload mid-match, a phone
+ * that changed role): it becomes the baseline instead of firing a phantom shot or power.
+ * A counter that went down is a phone that reloaded and restarted at 0: new baseline, no tap.
+ * Only a reload with exactly one earlier tap can still leak one tap; priming the tracker with
+ * the phone's first packet (as the sim tests do for Gunners) closes that too.
+ */
+export function counterTapped(last: number, now: number): boolean {
+  if (last < 0) return now === 1;
+  return now > last;
 }

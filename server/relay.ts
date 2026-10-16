@@ -170,7 +170,8 @@ export function createRelay(httpServer: HttpServer, opts: RelayOptions = {}): Re
     socket.on('host', (raw, ack) => {
       if (typeof ack !== 'function' || !control()) return;
       const msg = parseHost(raw);
-      if (!msg) {
+      // A phone socket that turned into a scene would leave its player slot attached to a scene socket.
+      if (!msg || socket.data.kind === 'player') {
         ack(err('bad_hello'));
         return;
       }
@@ -248,7 +249,8 @@ export function createRelay(httpServer: HttpServer, opts: RelayOptions = {}): Re
     socket.on('hello', (raw, ack) => {
       if (typeof ack !== 'function' || !control()) return;
       const msg = parseHello(raw);
-      if (!msg) {
+      // A scene socket that said hello would orphan its room (its disconnect would no longer free it).
+      if (!msg || socket.data.kind === 'scene') {
         ack(err('bad_hello'));
         return;
       }
@@ -336,7 +338,7 @@ export function createRelay(httpServer: HttpServer, opts: RelayOptions = {}): Re
 
     socket.on('leave', () => {
       const { kind, token } = socket.data;
-      if (kind !== 'player' || !token) return;
+      if (kind !== 'player' || !token || !control()) return;
       const gone = registry.removeByToken(token);
       if (gone) io.to(sceneRoom(gone.room.code)).emit('left', { t: 'left', pid: gone.player.pid, reason: 'leave' });
       detachPlayerSocket(socket);

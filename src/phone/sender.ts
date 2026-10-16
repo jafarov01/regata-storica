@@ -21,6 +21,12 @@ export interface InputSenderDeps {
   readonly gunnerHasPowers?: boolean;
   /** Called on CALIBRATE taps so the screen can confirm and send { t: 'calibrate' }. */
   readonly onCalibrate?: (ok: boolean) => void;
+  /**
+   * True while the controls must not act (the rotate-your-phone overlay for Pilot and Gunner):
+   * every tick then sends a coasting sample and throws away taps and turned yaw, so a phone held
+   * in portrait neither steers at full lock nor swings the aim when it comes back.
+   */
+  readonly suspended?: () => boolean;
 }
 
 /** What one tick consumed from the pads. Pure so it can be unit-tested. */
@@ -135,6 +141,13 @@ export function startInputSender(deps: InputSenderDeps): { stop(): void } {
 
   const tick = (): void => {
     if (stopped || document.visibilityState !== 'visible') return;
+    if (deps.suspended?.()) {
+      deps.pads.drainTaps();
+      deps.pipeline.drainYaw();
+      deps.send(neutralSample(deps.role, totals, powers));
+      schedule();
+      return;
+    }
     const edges = collectEdges(deps.pads.drainTaps());
     if (edges.calibrate) {
       const ok = deps.pipeline.calibrateSteer();
@@ -154,11 +167,15 @@ export function startInputSender(deps: InputSenderDeps): { stop(): void } {
       fireHeld: deps.pads.isHeld('fire'),
     };
     deps.send(buildInputSample(deps.role, state, totals, edges, powers));
+    schedule();
+  };
+
+  function schedule(): void {
     next += period;
     const now = performance.now();
     if (next < now - 5 * period) next = now + period; // fell far behind: resync instead of bursting
     timer = window.setTimeout(tick, Math.max(0, next - now));
-  };
+  }
 
   const onVisibility = (): void => {
     if (document.visibilityState === 'visible') {

@@ -30,6 +30,8 @@ export interface PhoneController {
   readonly padsRoot: HTMLElement;
   snapshot(): ControllerSnapshot;
   setRole(role: Role, gunnerHasPowers: boolean): void;
+  /** While true the sender coasts (rotate-your-phone overlay up): no steer, no aim, no taps. */
+  setSuspended(on: boolean): void;
   /** After a 'stalled' health report: re-arms the listeners without a new prompt. */
   restartSensors(): void;
   dispose(): void;
@@ -82,6 +84,7 @@ export async function startController(deps: PhoneControllerDeps): Promise<PhoneC
     padsRoot.querySelector(`[data-zone="${zone}"]`)?.classList.toggle('held', down);
   };
   let pads = new Pads(padsRoot, onZone);
+  let suspended = false;
   const makeSender = (): { stop(): void } =>
     startInputSender({
       role,
@@ -91,6 +94,7 @@ export async function startController(deps: PhoneControllerDeps): Promise<PhoneC
       hz: tuning.sendHz,
       gunnerHasPowers,
       onCalibrate: deps.onCalibrate,
+      suspended: () => suspended,
     });
   let sender = makeSender();
   const stopOrientation = watchOrientation((info) => deps.onOrientation(info.landscape));
@@ -116,6 +120,9 @@ export async function startController(deps: PhoneControllerDeps): Promise<PhoneC
       deps.mount.append(padsRoot);
       pads = new Pads(padsRoot, onZone);
       sender = makeSender();
+    },
+    setSuspended(on: boolean): void {
+      suspended = on;
     },
     restartSensors(): void {
       source.stop();

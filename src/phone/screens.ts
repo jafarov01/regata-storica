@@ -4,14 +4,19 @@
  *
  *   role graphic   Pilot wheel, Gunner compass + weapon/ammo, Engineer water meter
  *   pad labels     power buttons show the held power, greyed when the slot is empty
- *   overlays       SUNK + countdown, results, spectator, "big screen can't hear you"
+ *   overlays       SUNK + countdown, results with the time to the next lobby
+ *   cues           short words over the role graphic for one-shot events (shot landed, kill)
  */
 import type { Evt, Hud, Role } from '@shared/protocol.ts';
 import type { PowerId, WeaponId } from '@shared/config.ts';
 import type { ControllerSnapshot } from './sensors.ts';
+import { clock } from './view.ts';
 
 const WEAPON_LABEL: Record<WeaponId, string> = { watercannon: 'WATER CANNON', cannon: 'CANNON', torpedo: 'TORPEDO', mortar: 'MORTAR' };
 const POWER_LABEL: Record<PowerId, string> = { shield: 'SHIELD', mine: 'MINE', boost: 'BOOST', smoke: 'SMOKE', wave: 'WAVE' };
+const ROLE_LABEL: Record<Role, string> = { pilot: 'PILOT', gunner: 'GUNNER', engineer: 'ENGINEER' };
+/** How long a one-shot cue stays over the role graphic. */
+const CUE_MS = 1200;
 
 export const SCREENS_HTML = `
   <div id="role-view" class="role-view" hidden>
@@ -26,8 +31,15 @@ export const SCREENS_HTML = `
     <div class="big">SUNK</div><div id="sunk-by"></div><div class="count" id="sunk-count"></div>
   </div>
   <div id="results" class="phone-overlay results" hidden>
-    <div class="big" id="results-title">MATCH OVER</div><div id="results-team"></div><div class="small">Next round starts from the big screen</div>
+    <div class="big" id="results-title">MATCH OVER</div><div id="results-team"></div><div class="small" id="results-next">Next round starts from the big screen</div>
   </div>`;
+
+/** A weapon or power id from an Evt detail as the pads write it; anything else in capitals. */
+export function itemLabel(detail: string): string {
+  if (detail in WEAPON_LABEL) return WEAPON_LABEL[detail as WeaponId];
+  if (detail in POWER_LABEL) return POWER_LABEL[detail as PowerId];
+  return detail.toUpperCase();
+}
 
 function el<T extends HTMLElement>(root: ParentNode, sel: string): T {
   const e = root.querySelector<T>(sel);
@@ -50,8 +62,11 @@ export class PhoneScreens {
   private readonly results: HTMLElement;
   private readonly resultsTitle: HTMLElement;
   private readonly resultsTeam: HTMLElement;
+  private readonly resultsNext: HTMLElement;
   private winner: string | null = null;
   private recenterUntil = 0;
+  private cueText = '';
+  private cueUntil = 0;
 
   constructor(
     root: ParentNode,
@@ -71,6 +86,7 @@ export class PhoneScreens {
     this.results = el(root, '#results');
     this.resultsTitle = el(root, '#results-title');
     this.resultsTeam = el(root, '#results-team');
+    this.resultsNext = el(root, '#results-next');
     // RECENTER feedback: the pads consume the tap, we only flash a word.
     padsMount.addEventListener('pointerdown', (e) => {
       if (e.target instanceof Element && e.target.closest('[data-zone="recenter"]')) this.recenterUntil = performance.now() + 500;
@@ -81,7 +97,7 @@ export class PhoneScreens {
   setPlaying(playing: boolean, role: Role): void {
     this.roleView.hidden = !playing;
     this.roleView.dataset['role'] = role;
-    this.roleName.textContent = role.toUpperCase();
+    this.roleName.textContent = ROLE_LABEL[role];
     if (!playing) {
       this.sunk.hidden = true;
       this.results.hidden = true;
@@ -91,6 +107,27 @@ export class PhoneScreens {
   onEvt(e: Evt): void {
     if (e.kind === 'win' && e.detail) this.winner = e.detail;
     if (e.kind === 'start' || e.kind === 'countdown') this.winner = null;
+    // Short words for the cues the scene sends (src/scene/phoneFeed.ts decides who gets which).
+    if (e.kind === 'kill') this.cue(e.detail ? `SUNK ${e.detail.toUpperCase()}!` : 'SUNK THEM!');
+    if (e.kind === 'pickup') this.cue(e.detail ? `+ ${itemLabel(e.detail)}` : 'PICKED UP');
+    if (e.kind === 'power') this.cue(e.detail ? `${itemLabel(e.detail)}!` : 'POWER USED');
+    if (e.kind === 'shielded') this.cue('SHIELD HELD');
+    if (e.kind === 'rammed') this.cue('RAMMED!');
+    if (e.kind === 'respawn') this.cue('BACK IN!');
+    // Our own shot landed. phoneFeed sends 'hit' only to the victim crew today; a 'landed' detail
+    // for the shooter's Gunner (SPEC section 3: "a flash when a shot lands") lights this up.
+    if (e.kind === 'hit' && e.detail === 'landed') {
+      this.cue('HIT!');
+      this.compass.classList.remove('landed');
+      void this.compass.offsetWidth; // restart the ring animation
+      this.compass.classList.add('landed');
+    }
+  }
+
+  /** A word over the role graphic for a moment. */
+  cue(text: string): void {
+    this.cueText = text;
+    this.cueUntil = performance.now() + CUE_MS;
   }
 
   /** 10 Hz: everything that comes from the scene. */
@@ -98,12 +135,14 @@ export class PhoneScreens {
     this.sunk.hidden = !playing || h.alive || h.phase === 'results';
     if (!this.sunk.hidden) {
       this.sunkBy.textContent = h.sunkBy ? `by ${h.sunkBy}` : '';
-      this.sunkCount.textContent = h.respawnIn > 0 ? `back in ${Math.ceil(h.respawnIn)}` : '';
+      // Sudden death: a sunk team that is not tied stays out ('out' boats never respawn).
+      this.sunkCount.textContent = h.respawnIn > 0 ? `back in ${Math.ceil(h.respawnIn)}` : h.phase === 'suddendeath' ? 'out until the end' : '';
     }
     this.results.hidden = !playing || h.phase !== 'results';
     if (!this.results.hidden) {
       this.resultsTitle.textContent = this.winner ? (this.winner === h.teamName ? 'YOU WIN!' : `${this.winner.toUpperCase()} WINS`) : 'MATCH OVER';
       this.resultsTeam.textContent = `${h.teamName}: ${h.kills} kills · ${h.deaths} deaths`;
+      this.resultsNext.textContent = h.timeLeft > 0 ? `Back to the lobby in ${clock(h.timeLeft)}, same teams` : 'Next round starts from the big screen';
     }
 
     if (h.role === 'gunner') {
@@ -140,7 +179,9 @@ export class PhoneScreens {
     } else {
       tip = hud?.bail ? 'SHAKE TO BAIL' : '';
     }
-    if (role === 'gunner' && performance.now() < this.recenterUntil) tip = 'RECENTERED';
+    const now = performance.now();
+    if (role === 'gunner' && now < this.recenterUntil) tip = 'RECENTERED';
+    if (now < this.cueUntil) tip = this.cueText;
     if (this.tip.textContent !== tip) this.tip.textContent = tip;
   }
 }

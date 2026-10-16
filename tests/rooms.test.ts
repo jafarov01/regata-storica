@@ -69,6 +69,30 @@ describe('registry', () => {
   });
 });
 
+describe('registry probe and gate', () => {
+  it('probe tells the join screen whether a code exists, is full or is locked, without changing anything', () => {
+    const reg = new RoomRegistry({ maxPlayers: 2 });
+    const room = reg.create('scene', 'tok');
+    expect(reg.probe('ZZZZ')).toEqual({ exists: false, full: false, locked: false });
+    expect(reg.probe(room.code)).toEqual({ exists: true, full: false, locked: false });
+    reg.join(room.code, 'token-aaaa', 'A', 's1');
+    reg.join(room.code, 'token-bbbb', 'B', 's2');
+    reg.setGate(room.code, { t: 'gate', max: 18, locked: true, late: 'queue' });
+    expect(reg.probe(room.code)).toEqual({ exists: true, full: true, locked: true });
+    expect(room.players.size).toBe(2);
+  });
+
+  it('unlocking the gate clears the queued flag of late joiners', () => {
+    const reg = new RoomRegistry();
+    const room = reg.create('scene', 'tok');
+    reg.setGate(room.code, { t: 'gate', max: 18, locked: true, late: 'queue' });
+    const late = reg.join(room.code, 'token-late', 'L', 's1');
+    expect(late.ok && late.player.queued).toBe(true);
+    reg.setGate(room.code, { t: 'gate', max: 18, locked: false, late: 'queue' });
+    expect(reg.snapshot(room)).toEqual([{ pid: 'p1', name: 'L', connected: true, queued: false }]);
+  });
+});
+
 describe('parseInput', () => {
   it('rejects junk and clamps numbers', () => {
     expect(parseInput(null)).toBeNull();
