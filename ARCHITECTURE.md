@@ -101,7 +101,10 @@ Read-only for agents. A change is agreed out loud, made by one person, with `tes
 | `src/scene/hud.ts`, `scene.css` | B | real | lobby with QR, roster, host buttons and kick; timer, scoreboard, kill feed, minimap; per viewport weapon/ammo, powers, water bar, bow arrow, protection and Shield timers, crosshair states, Shield flash, SUNK and kill-cam; results with top Gunner and best ram |
 | `src/scene/phoneFeed.ts` | B | real | `Hud` per phone, `SimEvent` -> `Evt` (fired, hit, sunk, kill, shielded, respawn, pickup, power, rammed, countdown, start, win), `LobbySync` |
 | `src/scene/views.ts` | B | real | `CameraView` per team: kill-cam on the killer, ended for good if the killer sinks meanwhile |
-| `src/render/index.ts` | C | placeholder | `Renderer`: scissor viewports and camera rigs are real; buildings are blocks, water is flat, boats are boxes |
+| `src/render/index.ts` | C | placeholder | `Renderer`: scissor viewports and camera rigs are real; buildings are blocks, water is flat, boats are boxes; carries the crew avatars |
+| `src/render/avatars.ts` | C | real | `CrewAvatars`: the people aboard, built from each player's pick (look sheet + cartoon face decal), Pilot standing at the stern with the oar, Gunner at the bow cannon turning with the aim, Engineer amidships with the bucket; spring sway from turns and acceleration, rowing, bailing, sinking and cheering. Boat frame: bow at -Z, deck at y = 0 |
+| `shared/characters.ts`, `public/assets/players/` | all | real | the 14 Via Falchi players and the gondolier: names, look sheets, face crops, portraits (512 px for the 3D face, 256 px for phones) |
+| `src/phone/picker.ts` | A | real | "Choose your player" after the QR scan; one person per player, the gondolier for anyone; the pick travels as the `character` control message |
 
 ## 6. Where each track plugs in
 

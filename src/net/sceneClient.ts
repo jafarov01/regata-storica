@@ -13,6 +13,7 @@ import {
   type Hud,
   type InputMsg,
   type Lobby,
+  type PickCharacter,
   type PlayerJoined,
   type PlayerLeft,
   type PlayerReconnected,
@@ -35,6 +36,7 @@ export interface SceneHandlers {
   onReady(pid: string, m: Ready): void;
   onCalibrate(pid: string, m: Calibrate): void;
   onRename(pid: string, m: Rename): void;
+  onCharacter(pid: string, m: PickCharacter): void;
 }
 
 /** The URL the QR encodes. Override with VITE_PUBLIC_ORIGIN when the scene PC opens localhost but phones use a tunnel. */
@@ -64,6 +66,7 @@ export class SceneClient {
     this.socket.on('ready', (pid, m) => this.h.onReady(pid, m));
     this.socket.on('calibrate', (pid, m) => this.h.onCalibrate(pid, m));
     this.socket.on('rename', (pid, m) => this.h.onRename(pid, m));
+    this.socket.on('character', (pid, m) => this.h.onCharacter(pid, m));
     this.h.onLink('connecting');
   }
 

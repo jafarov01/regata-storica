@@ -42,6 +42,8 @@ export interface PlayerState {
   calibrated: boolean;
   /** Keyboard harness or bot; no phone behind it. */
   virtual: boolean;
+  /** The person they play (shared/characters.ts); null until they pick (shown as a gondolier). */
+  character: string | null;
   /** Sim time of the last input packet; the HUD flags phones that went quiet. */
   lastInputAt: number;
   kills: number;

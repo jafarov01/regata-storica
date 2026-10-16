@@ -40,6 +40,7 @@ import type { ParsedMap } from '@shared/map.ts';
 import { lerp, lerpAngle, smoothingAlpha } from '@shared/math.ts';
 import type { GameState, SimEvent } from '@shared/state.ts';
 import { toGl } from '../scene/layout.ts';
+import { CrewAvatars, type CrewMember } from './avatars.ts';
 
 const PLASTER = [0xd9a066, 0xc8694a, 0xe0b4a8, 0xeedfc0, 0xb98a5a];
 const WATER = 0x1f4a48;
@@ -49,6 +50,8 @@ interface BoatView {
   root: Group;
   hull: Mesh;
   aim: Mesh;
+  /** The people aboard (src/render/avatars.ts), on the deck: bow at -Z, deck at y = 0. */
+  crew: CrewAvatars;
 }
 
 interface Rig {
@@ -147,8 +150,11 @@ export function createRenderer(canvas: HTMLCanvasElement, map: ParsedMap): Rende
     const aim = new Mesh(aimGeo, new MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.6 }));
     aim.position.y = 1.4;
     root.add(hull, aim);
+    const crew = new CrewAvatars(colour);
+    crew.root.position.y = 1; // the placeholder hull's top
+    root.add(crew.root);
     scene.add(root);
-    const view = { root, hull, aim };
+    const view = { root, hull, aim, crew };
     boats[team] = view;
     return view;
   }
@@ -180,6 +186,23 @@ export function createRenderer(canvas: HTMLCanvasElement, map: ParsedMap): Rende
         v.root.rotation.set(0, yaw, -boat.steer * 0.08 * Math.min(1, Math.abs(boat.speed) / 5));
         v.aim.rotation.y = lerpAngle(boat.prevAimYaw, boat.aimYaw, alpha) - yaw;
         v.root.visible = boat.status !== 'respawning' && boat.status !== 'out';
+        const members: CrewMember[] = [];
+        for (const id of state.teams[boat.team]?.members ?? []) {
+          const p = state.players[id];
+          if (p) members.push({ role: p.role, character: p.character });
+        }
+        v.crew.setCrew(members);
+        v.crew.update({
+          dt,
+          time: now / 1000,
+          speed: boat.speed,
+          angVel: boat.angVel,
+          gas: boat.gas,
+          aimRel: v.aim.rotation.y,
+          water: boat.water,
+          sinking: boat.status === 'sinking',
+          celebrate: state.phase === 'results' && state.results?.winner === boat.team,
+        });
       }
       for (let t = state.boats.length; t < boats.length; t++) {
         const v = boats[t];

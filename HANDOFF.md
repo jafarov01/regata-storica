@@ -60,12 +60,19 @@ Dev console on the scene: `gr.sim.state`, `gr.sim.debug.giveWeapon(0, 'cannon')`
 
 To pull a file out of a transcript: `grep -o '"name":"Write","input":{"file_path":"[^"]*"' docs/research/_workflow/agent-<id>.jsonl | sort -u`; the contents are in the same JSON lines (`"content":`).
 
+## 4b. Characters (added 2026-10-16)
+
+After the QR scan a phone shows "Choose your player": the 14 people of the Via Falchi retreat (cartoon portraits from the event site, in `public/assets/players/`) plus the gondolier, open to anyone. One person per player; the pick is saved on the phone and sent again after any rejoin or big-screen reload. It travels as the `character` control message (`shared/protocol.ts`), lands in `PlayerState.character`, and shows in the big-screen roster, the phone crew list and in the boat: `src/render/avatars.ts` builds each person (look sheet in `shared/characters.ts` + the portrait as a face decal) and seats them by role, swaying with the boat.
+
+Without phones: `gr.sim.applyMessage('kb-1-pilot', { t: 'character', id: 'justin-simon' })` on the scene console.
+
 ## 5. Known gaps
 
 - Real phones are untested (Gate 1).
 - Steering: `BOAT.steerTorqueBase` 900 alone turned the boat 0.27 rad/s at rest, too slow for the side canals. `TUNING.boat.steerTorqueBaseMul` (1.85, `src/sim/tuning.ts`) now gives the physics research's 0.5 rad/s at rest and about 1.15 rad/s at 8 m/s (measured). Still the first thing to feel at Gate 2; when it is settled, fold it into `shared/config.ts` (`steerTorqueBase` 1665) and set the multiplier to 1.
 - The kill-cam ends (own sinking boat) when the killer sinks during it; freezing the killer's last pose instead, as the research did, is for the renderer (Track C).
-- The renderer is boxes; no assets in `public/assets/` yet.
+- The renderer is boxes; no assets in `public/assets/` yet. The crew avatars are real and live in their own module; when Track C lands the research renderer, add `CrewAvatars.root` to each gondola instead of the research `CrewSet` (research model has the bow on +X: wrap the crew in a group with `rotation.y = -PI/2`, deck height ~0.42).
+- The 3D people are code-built (proportions, hair, beard, glasses, clothes from each portrait, the cartoon face on the head), not scanned models: recognisable on the big screen, not photo-real. Portraits are published in this public repo, as they are on the event site.
 - Phone screens have the wheel, compass needle and Engineer meter as CSS shapes, not drawn art. Vibration, the 30 s lock/unlock resume and the fallback scanner are written but untested on real phones.
 - Phones only learn the winner from the volatile `Evt win`, and the results screen shows only their own team's score: `Hud` has no scoreboard (a `shared/protocol.ts` change if wanted).
 

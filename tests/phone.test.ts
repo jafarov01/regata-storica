@@ -99,7 +99,7 @@ describe('link warnings and dead links (A10, A6)', () => {
 });
 
 describe('lobby buttons', () => {
-  const m = (pid: string): LobbyMember => ({ pid, name: pid, role: 'pilot', ready: false, calibrated: false, connected: true, virtual: false });
+  const m = (pid: string): LobbyMember => ({ pid, name: pid, role: 'pilot', ready: false, calibrated: false, connected: true, virtual: false, character: null });
   const lobby: Lobby = {
     t: 'lobby',
     phase: 'lobby',

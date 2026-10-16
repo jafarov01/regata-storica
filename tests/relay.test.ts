@@ -139,6 +139,21 @@ describe('relay', () => {
     expect(p2Huds).toBe(0);
   });
 
+  it('forwards a character pick to the scene, and drops a malformed one', async () => {
+    const scene = connect();
+    const p1 = connect();
+    await Promise.all([connected(scene), connected(p1)]);
+    const { code } = await hostRoom(scene);
+    await joinRoom(p1, code, 'token-3333', 'Bepi');
+    const seen: unknown[] = [];
+    scene.on('character', (pid, msg) => void seen.push([pid, msg]));
+    p1.emit('character', { t: 'character', id: '<b>bad</b>' });
+    const got = next(scene, 'character');
+    p1.emit('character', { t: 'character', id: 'justin-simon' });
+    expect(await got).toEqual(['p1', { t: 'character', id: 'justin-simon' }]);
+    expect(seen).toEqual([['p1', { t: 'character', id: 'justin-simon' }]]);
+  });
+
   it('clamps and drops malformed inputs', async () => {
     const scene = connect();
     const p1 = connect();

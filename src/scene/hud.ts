@@ -21,6 +21,13 @@ import type { ParsedMap } from '@shared/map.ts';
 import { wrapAngle } from '@shared/math.ts';
 import type { BoatState, GameState, KillCause, Role } from '@shared/state.ts';
 import { dropIcon, ferroMark, powerIcon, roleIcon, weaponIcon } from '../ui/icons.ts';
+import { portraitUrl } from '@shared/characters.ts';
+
+/** The player's portrait when they picked a person, else their role icon. */
+function faceOrRole(character: string | null, role: Role): string {
+  const url = character ? portraitUrl(character, 256) : null;
+  return url ? `<img class="face" src="${url}" alt="" />` : roleIcon(role);
+}
 
 const ROLE_LABEL: Record<Role, string> = { pilot: 'Pilot', gunner: 'Gunner', engineer: 'Engineer' };
 const ROLES_IN_ORDER: readonly Role[] = ['pilot', 'gunner', 'engineer'];
@@ -248,7 +255,7 @@ export class SceneHud {
             p.calibrated && !p.virtual ? '<em class="tag-mini">Controls on</em>' : '',
             p.ready ? '<em class="tag-mini ok">Ready</em>' : '',
           ].join('');
-          return `<li class="seat${fresh}">${roleIcon(p.role)}<span class="who">${esc(p.name)}</span>${tags}<span class="role">${ROLE_LABEL[p.role]}</span><button class="kick" data-action="kick" data-pid="${esc(id)}" title="Remove ${esc(p.name)}" aria-label="Remove ${esc(p.name)}">&times;</button></li>`;
+          return `<li class="seat${fresh}">${faceOrRole(p.character, p.role)}<span class="who">${esc(p.name)}</span>${tags}<span class="role">${ROLE_LABEL[p.role]}</span><button class="kick" data-action="kick" data-pid="${esc(id)}" title="Remove ${esc(p.name)}" aria-label="Remove ${esc(p.name)}">&times;</button></li>`;
         });
         // A crew beyond the team size (should not happen) still shows everyone.
         for (const id of t.members.slice(size)) seats.push(`<li class="seat">${roleIcon('engineer')}<span class="who">${esc(state.players[id]?.name ?? id)}</span></li>`);

@@ -6,7 +6,7 @@
  * tests/rooms.test.ts); the game payloads (Hud, Evt, Lobby) are what the
  * phone screens draw.
  *
- *   phone  --in / swap / ready / calibrate / rename / leave-->  relay  --(pid, msg)-->  scene
+ *   phone  --in / swap / ready / calibrate / rename / character / leave-->  relay  --(pid, msg)-->  scene
  *   scene  --hud / evt / lobby / gate / kick-->                 relay  --msg-->         phone(s)
  *
  * Rules every file in src/net and server/ follows:
@@ -188,9 +188,14 @@ export interface Rename {
 export interface Leave {
   t: 'leave';
 }
+/** Play as one of the people in shared/characters.ts (null: none yet). One person per player. */
+export interface PickCharacter {
+  t: 'character';
+  id: string | null;
+}
 
 /** Control messages the scene applies to the roster (`Sim.applyMessage`). */
-export type PhoneControl = Swap | Ready | Calibrate | Rename | Leave;
+export type PhoneControl = Swap | Ready | Calibrate | Rename | PickCharacter | Leave;
 
 // ---------------------------------------------------------------------------
 // scene -> relay -> phone(s)
@@ -253,6 +258,8 @@ export interface LobbyMember {
   connected: boolean;
   /** Keyboard harness or bot seat on the scene PC. */
   virtual: boolean;
+  /** The person they play (shared/characters.ts), or null before they pick. */
+  character: string | null;
 }
 
 export interface LobbyTeam {
@@ -389,6 +396,7 @@ export interface ClientToServerEvents {
   ready: (msg: Ready) => void;
   calibrate: (msg: Calibrate) => void;
   rename: (msg: Rename) => void;
+  character: (msg: PickCharacter) => void;
   leave: (msg: Leave) => void;
 }
 
@@ -402,6 +410,7 @@ export interface ServerToClientEvents {
   ready: (pid: string, msg: Ready) => void;
   calibrate: (pid: string, msg: Calibrate) => void;
   rename: (pid: string, msg: Rename) => void;
+  character: (pid: string, msg: PickCharacter) => void;
   // to phones
   hud: (msg: Hud) => void;
   evt: (msg: Evt) => void;
@@ -547,6 +556,14 @@ export function parseRename(x: unknown): Rename | null {
   if (!isRecord(x) || x['t'] !== 'rename') return null;
   const name = sanitizeName(x['name']);
   return name ? { t: 'rename', name } : null;
+}
+
+/** The id is only checked for shape here; the scene checks it against shared/characters.ts. */
+export function parseCharacter(x: unknown): PickCharacter | null {
+  if (!isRecord(x) || x['t'] !== 'character') return null;
+  const id = x['id'];
+  if (id === null) return { t: 'character', id: null };
+  return typeof id === 'string' && /^[a-z-]{1,40}$/.test(id) ? { t: 'character', id } : null;
 }
 
 export function parseGate(x: unknown): Gate | null {

@@ -27,6 +27,7 @@ import {
   parseInput,
   parseReady,
   parseRename,
+  parseCharacter,
   parseSwap,
   type ClientToServerEvents,
   type Err,
@@ -334,6 +335,13 @@ export function createRelay(httpServer: HttpServer, opts: RelayOptions = {}): Re
       const player = room?.players.get(token);
       if (player) player.name = msg.name;
       io.to(sceneRoom(code)).emit('rename', pid, msg);
+    });
+
+    socket.on('character', (raw) => {
+      const { kind, code, pid } = socket.data;
+      if (kind !== 'player' || !code || !pid || !control()) return;
+      const msg = parseCharacter(raw);
+      if (msg) io.to(sceneRoom(code)).emit('character', pid, msg);
     });
 
     socket.on('leave', () => {

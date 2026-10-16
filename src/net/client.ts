@@ -306,6 +306,11 @@ export class PhoneClient {
     this.socket.emit('rename', { t: 'rename', name });
   }
 
+  /** Play as a person from shared/characters.ts; the scene refuses one somebody else already plays. */
+  pickCharacter(id: string | null): void {
+    this.socket.emit('character', { t: 'character', id });
+  }
+
   leave(): void {
     this.socket.emit('leave', { t: 'leave' });
     this.joined = false;

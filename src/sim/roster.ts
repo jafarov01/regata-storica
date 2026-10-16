@@ -9,6 +9,7 @@
  * moves keyboard or bot seats.
  */
 import type { AddPlayerOptions } from '@shared/api.ts';
+import { GONDOLIER_ID, isCharacterId } from '@shared/characters.ts';
 import { MATCH } from '@shared/config.ts';
 import type { ParsedMap } from '@shared/map.ts';
 import type { Lobby, LobbyMember, PhoneControl } from '@shared/protocol.ts';
@@ -54,6 +55,7 @@ export class Roster {
       ready: false,
       calibrated: false,
       virtual: opts.virtual ?? false,
+      character: null,
       lastInputAt: this.state.time,
       kills: 0,
       ramKills: 0,
@@ -110,6 +112,17 @@ export class Roster {
       case 'rename':
         p.name = msg.name;
         return;
+      case 'character': {
+        // One person per player; the gondolier is for anyone. An unknown or taken id changes nothing.
+        if (msg.id === null) {
+          p.character = null;
+          return;
+        }
+        if (!isCharacterId(msg.id)) return;
+        const taken = msg.id !== GONDOLIER_ID && Object.values(this.state.players).some((o) => o.id !== id && o.character === msg.id);
+        if (!taken) p.character = msg.id;
+        return;
+      }
       case 'leave':
         this.removePlayer(id);
         return;
@@ -151,7 +164,7 @@ export class Roster {
     const member = (id: string): LobbyMember | null => {
       const p = this.state.players[id];
       if (!p) return null;
-      return { pid: p.id, name: p.name, role: p.role, ready: p.ready, calibrated: p.calibrated, connected: p.connected, virtual: p.virtual };
+      return { pid: p.id, name: p.name, role: p.role, ready: p.ready, calibrated: p.calibrated, connected: p.connected, virtual: p.virtual, character: p.character };
     };
     return {
       t: 'lobby',

@@ -31,6 +31,27 @@ import { PhoneScreens, SCREENS_HTML } from './screens.ts';
 import { clock, describeErr, linkWarning, nextRole, nextTeam, phoneView, type ErrView, type ViewState } from './view.ts';
 import { haptic } from './wake.ts';
 import { ferroMark, roleIcon } from '../ui/icons.ts';
+import { GONDOLIER_ID, characterById, portraitUrl } from '@shared/characters.ts';
+import { CharacterPicker, PICKER_HTML } from './picker.ts';
+
+const CHARACTER_KEY = 'gr.character';
+
+function loadCharacter(): string | null {
+  try {
+    return localStorage.getItem(CHARACTER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveCharacter(id: string | null): void {
+  try {
+    if (id) localStorage.setItem(CHARACTER_KEY, id);
+    else localStorage.removeItem(CHARACTER_KEY);
+  } catch {
+    // Private mode: the pick lasts for this page only.
+  }
+}
 
 const ROLE_LABEL: Record<Role, string> = { pilot: 'Pilot', gunner: 'Gunner', engineer: 'Engineer' };
 const PHASE_LABEL: Record<Phase, string> = { lobby: 'Lobby', countdown: 'Starts in', battle: 'Battle', suddendeath: 'Sudden death', results: 'Results' };
@@ -163,6 +184,7 @@ function runRoom(root: HTMLElement, room: string): void {
         <div class="lobby-controls">
           <label class="name-field"><span>Your name</span><input id="name" class="name-input" maxlength="16" autocomplete="nickname" enterkeyhint="done" /></label>
           <div class="row">
+            <button id="change-player" class="chip" type="button">Change player</button>
             <button id="swap-role" class="chip" type="button">Swap role</button>
             <button id="move-team" class="chip" type="button">Move team</button>
             <button id="ready" class="chip" type="button" aria-pressed="false">Ready</button>
@@ -175,6 +197,7 @@ function runRoom(root: HTMLElement, room: string): void {
           <p id="hint" class="hint"></p>
         </div>
       </section>
+      ${PICKER_HTML}
       <section id="resume" class="phone-overlay resume" hidden>
         <div class="big">Match in progress</div>
         <div id="resume-seat" class="resume-seat"></div>
@@ -221,6 +244,7 @@ function runRoom(root: HTMLElement, room: string): void {
   const invertBtn = $<HTMLButtonElement>('#invert');
   const themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   const screens = new PhoneScreens(root, padsMount);
+  const picker = new CharacterPicker(root, (id) => onPick(id));
 
   const me: Me = { pid: null, team: -1, role: 'pilot', member: null };
   let lobby: Lobby | null = null;
@@ -243,6 +267,10 @@ function runRoom(root: HTMLElement, room: string): void {
   let lastHudAt = 0;
   let view: ViewState = computeView();
   let lastSeatKey = '';
+  /** A pick sent to the scene and not yet seen in the roster. */
+  let pendingPick: string | null = null;
+  let pickerOpen = false;
+  let pickMessage = '';
   let lastHudHtml = '';
   let lastCrewHtml = '';
   nameInput.value = getPlayerName();
@@ -281,6 +309,12 @@ function runRoom(root: HTMLElement, room: string): void {
     onWelcome: (w) => {
       me.pid = w.pid;
       blocked = null;
+      // Every (re)join says who we play: after a scene reload the roster starts without it.
+      const saved = loadCharacter();
+      if (saved && characterById(saved)) {
+        pendingPick = saved;
+        client.pickCharacter(saved);
+      }
       sceneOnline = w.sceneOnline;
       say(w.queued ? 'A match is running: you join at the next lobby.' : w.sceneOnline ? '' : 'Waiting for the big screen...');
       findMe();
@@ -289,6 +323,7 @@ function runRoom(root: HTMLElement, room: string): void {
     onLobby: (l) => {
       lobby = l;
       findMe();
+      settlePick();
       setPhase(l.phase);
       render();
     },
@@ -380,6 +415,66 @@ function runRoom(root: HTMLElement, room: string): void {
     return TEAM_COLOURS[me.team]?.name ?? '';
   }
 
+  function myCharacter(): string | null {
+    return me.member?.character ?? null;
+  }
+
+  /** Person id -> the name of the other player who plays them (the gondolier is never taken). */
+  function takenCharacters(): Map<string, string> {
+    const out = new Map<string, string>();
+    if (!lobby) return out;
+    for (const m of [...lobby.teams.flatMap((t) => t.members), ...lobby.spectators]) {
+      if (m.pid !== me.pid && m.character && m.character !== GONDOLIER_ID) out.set(m.character, m.name);
+    }
+    return out;
+  }
+
+  /** The roster says whether our pick landed; a pick somebody else got first sends us back to the picker. */
+  function settlePick(): void {
+    // A reloaded big screen seats us again without our pick (no new welcome comes): say it again.
+    const saved = loadCharacter();
+    if (!pendingPick && me.member && myCharacter() === null && saved && characterById(saved) && !takenCharacters().has(saved)) {
+      pendingPick = saved;
+      client.pickCharacter(saved);
+      return;
+    }
+    if (!pendingPick) return;
+    if (myCharacter() === pendingPick) {
+      pendingPick = null;
+      return;
+    }
+    const by = takenCharacters().get(pendingPick);
+    if (by) {
+      pickMessage = `${by} is already playing ${characterById(pendingPick)?.short ?? 'that person'}. Pick someone else.`;
+      pendingPick = null;
+      saveCharacter(null);
+    }
+  }
+
+  function renderPicker(): void {
+    const needPick = lobby !== null && me.pid !== null && myCharacter() === null && pendingPick === null;
+    const show = !blocked && !view.playing && (needPick || pickerOpen) && (view.lobby || view.spectate);
+    if (show) picker.show(myCharacter() ?? loadCharacter(), takenCharacters(), pickMessage);
+    else picker.hide();
+  }
+
+  function onPick(id: string): void {
+    const c = characterById(id);
+    if (!c) return;
+    pendingPick = id;
+    pickerOpen = false;
+    pickMessage = '';
+    saveCharacter(id);
+    client.pickCharacter(id);
+    // You are who you picked: the name follows (the gondolier keeps the typed name).
+    if (id !== GONDOLIER_ID && nameInput.value !== c.short) {
+      nameInput.value = c.short;
+      setPlayerName(c.short);
+      client.rename(c.short);
+    }
+    render();
+  }
+
   function render(): void {
     view = computeView();
     const colour = teamColour();
@@ -389,11 +484,15 @@ function runRoom(root: HTMLElement, room: string): void {
     phoneEl.dataset['phase'] = phase;
     $('#me-name').textContent = nameInput.value;
     const seat = me.team >= 0 ? `${teamName()} ${ROLE_LABEL[me.role].toLowerCase()}` : 'Waiting for a seat';
-    const seatKey = `${me.team}|${me.role}|${teamName()}`;
+    const character = myCharacter() ?? pendingPick;
+    const seatKey = `${me.team}|${me.role}|${teamName()}|${character}`;
     if (seatKey !== lastSeatKey) {
       lastSeatKey = seatKey;
       $('#me-role').innerHTML = me.team >= 0 ? `<i class="swatch"></i>${esc(teamName())} ${roleIcon(me.role)}` : 'Waiting for a seat';
-      $('#seat-icon').innerHTML = me.team >= 0 ? roleIcon(me.role) : '';
+      // Your portrait on the stone disc once you picked someone, the role badge on its edge.
+      const face = character ? portraitUrl(character, 256) : null;
+      $('#seat-icon').innerHTML = me.team >= 0 ? (face ? `<img src="${face}" alt="" /><span class="seat-badge">${roleIcon(me.role)}</span>` : roleIcon(me.role)) : '';
+      $('#seat-icon').classList.toggle('has-face', !!face);
     }
     // Role name in large type with the team name over it (SPEC section 3, "check at a glance").
     seatTeam.textContent = me.team >= 0 ? teamName() : 'No crew yet';
@@ -427,6 +526,7 @@ function runRoom(root: HTMLElement, room: string): void {
     controller?.setRole(me.role, me.role === 'gunner' && hasPowers());
     controller?.setSuspended(view.suspended);
     rotateEl.classList.toggle('visible', view.rotate);
+    renderPicker();
     renderMessage();
   }
 
@@ -454,7 +554,9 @@ function runRoom(root: HTMLElement, room: string): void {
       if (!m) return `<li class="open">${roleIcon(role)}<span>Open seat</span><em>${ROLE_LABEL[role]}</em></li>`;
       const you = m.pid === me.pid ? ' <small>you</small>' : '';
       const ok = m.ready ? '<em class="ok">Ready</em>' : `<em>${ROLE_LABEL[m.role]}</em>`;
-      return `<li${m.pid === me.pid ? ' class="me"' : ''}>${roleIcon(m.role)}<span>${esc(m.name)}${you}</span>${ok}</li>`;
+      const face = m.character ? portraitUrl(m.character, 256) : null;
+      const pic = face ? `<img class="face" src="${face}" alt="" />` : roleIcon(m.role);
+      return `<li${m.pid === me.pid ? ' class="me"' : ''}>${pic}<span>${esc(m.name)}${you}</span>${ok}</li>`;
     });
     const html = rows.join('');
     if (html !== lastCrewHtml) crewEl.innerHTML = lastCrewHtml = html;
@@ -474,6 +576,11 @@ function runRoom(root: HTMLElement, room: string): void {
     if (!name) return;
     setPlayerName(name);
     client.rename(name);
+    render();
+  });
+  $('#change-player').addEventListener('click', () => {
+    pickerOpen = true;
+    pickMessage = '';
     render();
   });
   $('#swap-role').addEventListener('click', () => {

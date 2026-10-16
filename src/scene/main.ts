@@ -121,6 +121,7 @@ export async function startScene(root: HTMLElement): Promise<void> {
     onReady: (pid, m) => sim.applyMessage(pid, m),
     onCalibrate: (pid, m) => sim.applyMessage(pid, m),
     onRename: (pid, m) => sim.applyMessage(pid, m),
+    onCharacter: (pid, m) => sim.applyMessage(pid, m),
   });
 
   let kbCrews = 0;
