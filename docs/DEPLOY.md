@@ -43,7 +43,7 @@ Deploy or update (from a machine with the `vps-fyce` SSH alias):
 ssh vps-fyce 'cd /opt/gondola-royale && git pull && docker build -t gondola-royale . && /opt/gondola-royale-run.sh'
 ```
 
-`/opt/gondola-royale-run.sh` on the VPS replaces the container (it also strips the `Alt-Svc` header with a `gondola-noh3` headers middleware: Coolify's Traefik advertises HTTP/3, and browsers that switched to QUIC got `ERR_QUIC_PROTOCOL_ERROR` on the bundles on 2026-10-16, so the game stays on HTTP/2): `--network coolify`, `--restart unless-stopped`, and the Traefik labels (`Host(gondola.179-198-200-73.sslip.io)`, entrypoints http/https, `tls.certresolver=letsencrypt`, a `compress` middleware, http to https redirect, service port 3000). Rooms live in memory: a redeploy closes open rooms, so redeploy between matches.
+`/opt/gondola-royale-run.sh` on the VPS replaces the container (it also strips the `Alt-Svc` header with a `gondola-noh3` headers middleware: Coolify's Traefik advertises HTTP/3, and browsers that switched to QUIC got `ERR_QUIC_PROTOCOL_ERROR` on the bundles on 2026-10-16, so the game stays on HTTP/2; browsers cache that advertisement for 30 days, so the script also drops UDP 443 in the `DOCKER-USER` iptables chain, which makes a cached QUIC attempt fail at once and fall back to HTTP/2 for every app on the VPS): `--network coolify`, `--restart unless-stopped`, and the Traefik labels (`Host(gondola.179-198-200-73.sslip.io)`, entrypoints http/https, `tls.certresolver=letsencrypt`, a `compress` middleware, http to https redirect, service port 3000). Rooms live in memory: a redeploy closes open rooms, so redeploy between matches.
 
 ## When the scene runs on localhost but phones use another address
 
