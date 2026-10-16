@@ -1,0 +1,11 @@
+import * as THREE from 'three';
+console.log('three REVISION', THREE.REVISION);
+const o = new THREE.Object3D();
+o.rotation.y = Math.PI / 2;
+const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(o.quaternion);
+console.log('yaw +90deg about +Y maps -z forward to', fwd.x.toFixed(3), fwd.y.toFixed(3), fwd.z.toFixed(3));
+const o2 = new THREE.Object3D();
+o2.rotation.y = 0.3;
+const f2 = new THREE.Vector3(0, 0, -1).applyQuaternion(o2.quaternion);
+console.log('yaw 0.3 forward', f2.x.toFixed(4), f2.z.toFixed(4), 'expected (-sin, -cos)=', (-Math.sin(0.3)).toFixed(4), (-Math.cos(0.3)).toFixed(4));
+console.log('has Vector2', typeof THREE.Vector2, 'MathUtils.lerp', typeof THREE.MathUtils.lerp);

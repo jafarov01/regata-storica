@@ -1,0 +1,27 @@
+listening http://localhost:49890
+health { ok: true } | / -> <spa path="/"> | /scene -> <spa path="/scene"> | /play -> <spa path="/play">
+room code RIVA
+welcome { pid: 'p1' } { pid: 'p2' }
+bad room -> { err: 'no_room' }
+scene got input [ 'p1', { seq: 1, v: 1 } ]
+p1 got hud [ { ammo: 5 }, 'Q54VB6k' ] p2 count 0
+lobby both [ { n: 2 }, 'Q54VB6l' ] [ { n: 2 }, 'Q54VB6l' ] scene count 0
+oversize -> [
+  'transport close',
+  {
+    description: 'websocket connection closed',
+    context: CloseEvent {
+      Symbol(kTarget): [WebSocket],
+      Symbol(kType): 'close',
+      Symbol(kCode): 1009,
+      Symbol(kReason): '',
+      Symbol(kWasClean): true
+    }
+  }
+]
+server data p1 { kind: 'player', room: 'RIVA', pid: 'p1' } rooms [ 'ugsf-fb1R0UkeWSbAAAC', 'RIVA:players', 'RIVA:p1' ]
+old id ugsf-fb1R0UkeWSbAAAC
+p1 recovered? true id same? ugsf-fb1R0UkeWSbAAAC
+server socket recovered? true data { kind: 'player', room: 'RIVA', pid: 'p1' } rooms [ 'ugsf-fb1R0UkeWSbAAAC', 'RIVA:players', 'RIVA:p1' ]
+kicked reason [ 'io server disconnect', undefined ] active? false
+OK

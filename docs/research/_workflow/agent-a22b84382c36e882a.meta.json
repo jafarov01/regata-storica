@@ -1,0 +1,1 @@
+{"agentType": "workflow-subagent", "description": "verify:rules:design", "workflowPhase": "Verify", "spawnDepth": 1, "requestShape": "foreground", "requestNonInteractive": true}

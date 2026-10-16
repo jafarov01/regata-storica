@@ -1,0 +1,1 @@
+{"agentType": "workflow-subagent", "description": "revise:map", "workflowPhase": "Revise", "spawnDepth": 1, "requestShape": "foreground", "requestNonInteractive": true}

@@ -1,0 +1,160 @@
+/* Gondola Royale: global styles shared by the landing page, the phone UI and the scene chrome.
+   Team colours are CSS variables so phone backgrounds and viewport borders stay in sync
+   with shared/config.ts (TEAM_COLOURS). */
+:root {
+  --bg: #0b1a24;
+  --bg-2: #122838;
+  --fg: #f4efe4;
+  --fg-dim: #b8c2c8;
+  --accent: #f2b544;
+  --danger: #e04a3a;
+  --ok: #4fc47a;
+  --team-0: #e04a3a; /* Rosso */
+  --team-1: #3a8fe0; /* Azzurro */
+  --team-2: #3fbf5f; /* Verde */
+  --team-3: #f2b544; /* Oro */
+  --team-4: #9b5de5; /* Viola */
+  --team-5: #ff8a2a; /* Arancio */
+  --radius: 16px;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Georgia", "Times New Roman", serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  /* 100dvh follows the iOS Safari toolbar; 100vh does not. */
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  margin: 0;
+}
+
+/* Full-screen controller pages: no scrolling, no selection, no callouts. */
+.controller {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 100dvh;
+  padding: 24px;
+  text-align: center;
+}
+
+.landing h1 {
+  font-size: clamp(36px, 8vw, 72px);
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.landing p {
+  color: var(--fg-dim);
+  max-width: 480px;
+  margin: 0;
+}
+
+.big-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: min(92vw, 420px);
+  min-height: 110px;
+  padding: 20px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 3px solid transparent;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: transform 80ms ease;
+}
+
+.big-button small {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--fg-dim);
+  letter-spacing: 0;
+}
+
+.big-button:active {
+  transform: scale(0.98);
+}
+
+.big-button.primary {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-2));
+}
+
+.big-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.muted {
+  color: var(--fg-dim);
+  font-size: 14px;
+}
+
+.error-box {
+  background: color-mix(in srgb, var(--danger) 25%, var(--bg-2));
+  border: 2px solid var(--danger);
+  border-radius: 12px;
+  padding: 12px 16px;
+  max-width: 480px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

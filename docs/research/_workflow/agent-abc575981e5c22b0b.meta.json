@@ -1,0 +1,1 @@
+{"agentType": "workflow-subagent", "description": "research:map", "workflowPhase": "Research", "spawnDepth": 1, "requestShape": "foreground", "requestNonInteractive": true}

@@ -1,0 +1,291 @@
+/**
+ * src/scene/hud.ts
+ * The big-screen HUD as a DOM overlay (SPEC section 10): absolutely positioned divs that
+ * mirror the layout rects, pointer-events none, team colours from the CSS variables in
+ * src/styles/base.css. Text, borders, the crosshair (SVG), the kill-cam card, the shield flash
+ * and the minimap canvas live here; the WebGL canvas never draws UI. Per-cell corner widgets
+ * are pushed away from the scoreboard band and the centre minimap by layout.placeWidget().
+ */
+import { bowArrowAngle } from './camera.ts';
+import { computeLayout, placeWidget, type Layout, type Rect } from './layout.ts';
+import { MapPainter } from './minimap.ts';
+import type { MapGrid } from '@shared/map.ts';
+import type { BoatState, GameEvent, RenderState, TeamState } from '@shared/state.ts';
+
+const CSS = `
+.hud{position:fixed;inset:0;pointer-events:none;overflow:hidden;font-family:var(--font);color:var(--fg)}
+.hud *{box-sizing:border-box}
+.hud .cell{position:absolute;border-style:solid;border-color:#fff}
+.hud .w{position:absolute;text-shadow:0 1px 3px #000c;line-height:1.15}
+.hud .name{font-family:var(--font-display);font-size:28px;font-weight:700}
+.hud .crew{font-size:14px;color:var(--fg-dim);white-space:pre}
+.hud .score{font-size:26px;font-weight:700;text-align:right}
+.hud .score small{font-size:14px;color:var(--fg-dim);font-weight:400}
+.hud .weapon{font-size:22px;font-weight:700}
+.hud .weapon small{font-size:13px;color:var(--fg-dim);font-weight:400}
+.hud .powers{display:flex;gap:6px;align-items:flex-end}
+.hud .slot{width:44px;height:44px;border:2px solid #fff8;border-radius:8px;font-size:11px;display:flex;align-items:center;justify-content:center;background:#0008;text-transform:uppercase}
+.hud .water{width:96px;height:10px;border:1px solid #fff8;border-radius:5px;overflow:hidden;background:#0008}
+.hud .water i{display:block;height:100%;width:0;background:#4ab3ff}
+.hud .arrow{width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+.hud .arrow svg{width:30px;height:30px}
+.hud .protect{font-size:16px;color:#fff;text-align:center}
+.hud .xh{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px}
+.hud .xh svg{width:64px;height:64px}
+.hud .xh .ring{fill:none;stroke-width:2.5}
+.hud .xh .diamond,.hud .xh .x,.hud .xh .lock{display:none;fill:none;stroke-width:3}
+.hud .xh.enemy .ring{display:none}.hud .xh.enemy .diamond{display:block;stroke:#ff4a3a}
+.hud .xh.lock .lock{display:block;stroke:#fff;stroke-dasharray:6 4}
+.hud .xh.hit .x{display:block;stroke:#fff}
+.hud .flash{position:absolute;inset:0;background:#4ab3ff;opacity:0;pointer-events:none}
+.hud .flash.on{animation:hudflash .35s ease-out}
+@keyframes hudflash{from{opacity:.55}to{opacity:0}}
+.hud .killcam{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:#0006}
+.hud .killcam.on{display:flex}
+.hud .killcam b{font-family:var(--font-display);font-size:40px}
+.hud .killcam span{font-size:64px;font-weight:800}
+.hud .sb{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:6px}
+.hud .timer{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;text-shadow:0 2px 6px #000}
+.hud .timer.red{color:#ff4a3a}
+.hud .teams{display:flex;gap:8px}
+.hud .pill{padding:2px 10px;border-radius:999px;font-weight:700;font-size:18px;color:#000;background:#fff}
+.hud .feed{font-size:15px;color:var(--fg);text-shadow:0 1px 3px #000;text-align:center;line-height:1.3}
+.hud .map{position:absolute;border-radius:8px;overflow:hidden}
+`;
+
+interface CellView {
+  root: HTMLDivElement;
+  name: HTMLDivElement;
+  crew: HTMLDivElement;
+  score: HTMLDivElement;
+  weapon: HTMLDivElement;
+  powers: HTMLDivElement;
+  slots: [HTMLDivElement, HTMLDivElement];
+  water: HTMLElement;
+  arrow: HTMLDivElement;
+  arrowSvg: SVGElement;
+  protect: HTMLDivElement;
+  xh: HTMLDivElement;
+  flash: HTMLDivElement;
+  killcam: HTMLDivElement;
+  killBy: HTMLElement;
+  killCount: HTMLElement;
+  cache: Record<string, string>;
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag);
+  e.className = cls;
+  parent.appendChild(e);
+  return e;
+}
+
+function setText(view: CellView, key: string, node: HTMLElement, text: string): void {
+  if (view.cache[key] === text) return;
+  view.cache[key] = text;
+  node.textContent = text;
+}
+
+function rectStyle(e: HTMLElement, r: Rect): void {
+  e.style.left = `${r.x}px`;
+  e.style.top = `${r.y}px`;
+  e.style.width = `${r.w}px`;
+  e.style.height = `${r.h}px`;
+}
+
+export class Hud {
+  readonly root: HTMLDivElement;
+  private readonly cells: CellView[] = [];
+  private readonly sb: HTMLDivElement;
+  private readonly timer: HTMLDivElement;
+  private readonly teamsRow: HTMLDivElement;
+  private readonly feed: HTMLDivElement;
+  private readonly mapCanvas: HTMLCanvasElement;
+  private painter: MapPainter | null = null;
+  private layout: Layout;
+  private teams: readonly TeamState[] = [];
+  private readonly margin = 14;
+
+  constructor(parent: HTMLElement, private readonly map: MapGrid, private readonly dpr: number = Math.min(2, window.devicePixelRatio || 1)) {
+    if (!document.getElementById('hud-css')) {
+      const style = document.createElement('style');
+      style.id = 'hud-css';
+      style.textContent = CSS;
+      document.head.appendChild(style);
+    }
+    this.root = el('div', 'hud', parent);
+    this.sb = el('div', 'sb', this.root);
+    this.timer = el('div', 'timer', this.sb);
+    this.teamsRow = el('div', 'teams', this.sb);
+    this.feed = el('div', 'feed', this.sb);
+    this.mapCanvas = el('canvas', 'map', this.root);
+    this.layout = computeLayout(2, window.innerWidth, window.innerHeight);
+  }
+
+  /** Call at round start and on resize. Rebuilds the per-team cells. */
+  setLayout(layout: Layout, teams: readonly TeamState[]): void {
+    this.layout = layout;
+    this.teams = teams;
+    for (const c of this.cells) c.root.remove();
+    this.cells.length = 0;
+    const reserved: Rect[] = [layout.scoreboard, layout.minimap];
+    for (let i = 0; i < teams.length; i++) {
+      const team = teams[i];
+      const cell = layout.cells[i];
+      if (!team || !cell) break;
+      this.cells.push(this.buildCell(team, cell, layout.border, reserved));
+    }
+    rectStyle(this.sb, layout.scoreboard);
+    rectStyle(this.mapCanvas, layout.minimap);
+    this.mapCanvas.width = Math.round(layout.minimap.w * this.dpr);
+    this.mapCanvas.height = Math.round(layout.minimap.h * this.dpr);
+    this.painter = new MapPainter(this.map, Math.min(layout.minimap.w, layout.minimap.h), this.dpr);
+  }
+
+  private buildCell(team: TeamState, cell: Rect, border: number, reserved: readonly Rect[]): CellView {
+    const root = el('div', 'cell', this.root);
+    rectStyle(root, cell);
+    root.style.borderWidth = `${border}px`;
+    root.style.borderColor = `var(--team-${team.id})`;
+    const inner: Rect = { x: 0, y: 0, w: cell.w, h: cell.h }; // widget coordinates are relative to the cell
+    const localReserved = reserved.map((r) => ({ x: r.x - cell.x, y: r.y - cell.y, w: r.w, h: r.h }));
+    const place = (node: HTMLElement, corner: 'tl' | 'tr' | 'bl' | 'br' | 'bc', w: number, h: number): void => {
+      const p = placeWidget(inner, corner, w, h, this.margin, localReserved);
+      node.style.left = `${p.x}px`;
+      node.style.top = `${p.y}px`;
+      node.style.width = `${w}px`;
+    };
+    const tl = el('div', 'w', root);
+    const name = el('div', 'name', tl);
+    name.style.color = `var(--team-${team.id})`;
+    const crew = el('div', 'crew', tl);
+    place(tl, 'tl', 260, 80);
+    const score = el('div', 'w score', root);
+    place(score, 'tr', 150, 40);
+    const weapon = el('div', 'w weapon', root);
+    place(weapon, 'bl', 200, 40);
+    const br = el('div', 'w', root);
+    const powers = el('div', 'powers', br);
+    const slotA = el('div', 'slot', powers);
+    const slotB = el('div', 'slot', powers);
+    const water = el('div', 'water', br);
+    water.style.marginTop = '6px';
+    water.appendChild(document.createElement('i'));
+    place(br, 'br', 100, 64);
+    const bc = el('div', 'w', root);
+    const arrow = el('div', 'arrow', bc);
+    arrow.innerHTML = `<svg viewBox="0 0 30 30"><path d="M15 3 L24 24 L15 18 L6 24 Z" fill="var(--team-${team.id})" stroke="#000" stroke-width="1.2"/></svg>`;
+    const arrowSvg = arrow.querySelector('svg');
+    const protect = el('div', 'protect', bc);
+    place(bc, 'bc', 120, 60);
+    arrow.style.margin = '0 auto';
+    const xh = el('div', 'xh', root);
+    xh.innerHTML = `<svg viewBox="0 0 64 64">
+      <circle class="ring" cx="32" cy="32" r="14" stroke="var(--team-${team.id})"/>
+      <path class="diamond" d="M32 14 L50 32 L32 50 L14 32 Z"/>
+      <path class="x" d="M18 18 L46 46 M46 18 L18 46"/>
+      <circle class="lock" cx="32" cy="32" r="24"/>
+      <circle cx="32" cy="32" r="1.8" fill="var(--team-${team.id})"/></svg>`;
+    const flash = el('div', 'flash', root);
+    const killcam = el('div', 'killcam', root);
+    const killBy = el('b', '', killcam);
+    const killCount = el('span', '', killcam);
+    return {
+      root, name, crew, score, weapon, powers, slots: [slotA, slotB], water: water.firstElementChild as HTMLElement, arrow, arrowSvg: arrowSvg ?? (document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGElement), protect, xh, flash, killcam, killBy, killCount, cache: {},
+    };
+  }
+
+  update(state: RenderState, events: readonly GameEvent[], time: number): void {
+    const boatsById = new Map<number, BoatState>();
+    for (const b of state.boats) boatsById.set(b.id, b);
+    const teamById = new Map<number, TeamState>();
+    for (const t of state.teams) teamById.set(t.id, t);
+    for (let i = 0; i < this.cells.length; i++) {
+      const v = this.cells[i];
+      const team = this.teams[i];
+      if (!v || !team) continue;
+      const live = teamById.get(team.id) ?? team;
+      const boat = boatsById.get(live.boatId);
+      setText(v, 'name', v.name, live.name);
+      setText(v, 'crew', v.crew, live.crew.map((c) => `${c.role === 'pilot' ? '⚓' : c.role === 'gunner' ? '⚔' : '⚒'} ${c.name}`).join('\n'));
+      v.score.innerHTML = this.cached(v, 'score', `${live.kills} <small>kills</small> &nbsp; ${live.deaths} <small>deaths</small>`) ?? v.score.innerHTML;
+      if (!boat) continue;
+      setText(v, 'weapon', v.weapon, boat.weapon === 'water' ? 'WATER CANNON' : `${boat.weapon.toUpperCase()}`);
+      v.weapon.innerHTML = this.cached(v, 'weaponHtml', boat.weapon === 'water' ? 'WATER CANNON <small>&infin;</small>' : `${boat.weapon.toUpperCase()} <small>x${boat.ammo}</small>`) ?? v.weapon.innerHTML;
+      setText(v, 'slot0', v.slots[0], boat.powers[0] ?? '');
+      setText(v, 'slot1', v.slots[1], boat.powers[1] ?? '');
+      v.water.style.width = `${boat.water}%`;
+      const ang = bowArrowAngle(boat.yaw, boat.aim);
+      v.arrowSvg.style.transform = `rotate(${(ang * 180) / Math.PI}deg)`;
+      setText(v, 'protect', v.protect, boat.protectT > 0 ? `protected ${boat.protectT.toFixed(1)}` : '');
+      const xhClass = `xh${boat.enemyOnAim ? ' enemy' : ''}${boat.lockReady ? ' lock' : ''}`;
+      if (v.cache['xh'] !== xhClass) {
+        v.cache['xh'] = xhClass;
+        v.xh.className = xhClass;
+      }
+      const dead = !boat.alive;
+      v.killcam.classList.toggle('on', dead);
+      if (dead) {
+        const killer = boat.killerBoatId !== null ? state.boats.find((b) => b.id === boat.killerBoatId) : undefined;
+        const killerTeam = killer ? teamById.get(killer.team) : undefined;
+        setText(v, 'killBy', v.killBy, killerTeam ? `SUNK by ${killerTeam.name}` : 'SUNK');
+        setText(v, 'killCount', v.killCount, Math.ceil(boat.respawnIn).toString());
+      }
+    }
+    for (const e of events) {
+      if (e.kind === 'shielded') {
+        const v = this.cellForBoat(state, e.boatId);
+        if (v) {
+          v.flash.classList.remove('on');
+          void v.flash.offsetWidth; // restart the CSS animation
+          v.flash.classList.add('on');
+        }
+      } else if (e.kind === 'hit') {
+        // crosshair X flash for the shooter is driven by the 'kill' event (team known)
+      } else if (e.kind === 'kill') {
+        const idx = this.teams.findIndex((t) => t.id === e.team);
+        const v = this.cells[idx];
+        if (v) {
+          v.xh.classList.add('hit');
+          window.setTimeout(() => v.xh.classList.remove('hit'), 250);
+        }
+      }
+    }
+    // shared
+    const t = Math.max(0, state.timeLeft);
+    const mm = Math.floor(t / 60);
+    const ss = Math.floor(t % 60);
+    const timerText = state.phase === 'battle' ? `${mm}:${ss.toString().padStart(2, '0')}` : state.phase.toUpperCase();
+    if (this.timer.textContent !== timerText) this.timer.textContent = timerText;
+    this.timer.classList.toggle('red', state.phase === 'battle' && t <= 60);
+    const pills = state.teams.map((tm) => `<span class="pill" style="background:var(--team-${tm.id})">${tm.name} ${tm.kills}</span>`).join('');
+    if (this.teamsRow.innerHTML !== pills) this.teamsRow.innerHTML = pills;
+    const feed = state.killFeed.slice(0, 4).join('\n');
+    if (this.feed.textContent !== feed) this.feed.textContent = feed;
+    if (this.painter) {
+      const ctx = this.mapCanvas.getContext('2d');
+      if (ctx) this.painter.draw(ctx, state, state.phase !== 'battle', time);
+    }
+  }
+
+  private cached(v: CellView, key: string, html: string): string | null {
+    if (v.cache[key] === html) return null;
+    v.cache[key] = html;
+    return html;
+  }
+
+  private cellForBoat(state: RenderState, boatId: number): CellView | undefined {
+    const boat = state.boats.find((b) => b.id === boatId);
+    if (!boat) return undefined;
+    const idx = this.teams.findIndex((t) => t.id === boat.team);
+    return this.cells[idx];
+  }
+
+  get currentLayout(): Layout {
+    return this.layout;
+  }
+
+  dispose(): void {
+    this.root.remove();
+  }
+}
