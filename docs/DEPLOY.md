@@ -31,6 +31,20 @@ Notes:
 - Rooms live in memory: a redeploy closes every room. Do not push to `main` during the demo.
 - Check it is up: `curl https://<service>.onrender.com/api/health` returns `{"ok":true,...}`. `GET /api/rooms/<CODE>` says whether a room exists (the phone join form uses it).
 
+## 3. Our VPS (fastest: use this when the venue's upload is slow)
+
+The tunnel serves every file from the scene PC, so the venue's **upload** speed caps loading: at 157 KB/s (measured at Via Falchi) the 4 MB big-screen bundle took over a minute and phones queued behind it. On a VPS the files come from the server's own connection.
+
+Live: **https://gondola.179-198-200-73.sslip.io** (Hostinger VPS `vps-fyce`, alongside Coolify). One Docker container (`Dockerfile`: the relay serving the built game on port 3000) behind Coolify's Traefik, which adds HTTPS (Let's Encrypt) and gzip. The `sslip.io` name resolves to the VPS IP, so no DNS record is needed.
+
+Deploy or update (from a machine with the `vps-fyce` SSH alias):
+
+```bash
+ssh vps-fyce 'cd /opt/gondola-royale && git pull && docker build -t gondola-royale . && /opt/gondola-royale-run.sh'
+```
+
+`/opt/gondola-royale-run.sh` on the VPS replaces the container: `--network coolify`, `--restart unless-stopped`, and the Traefik labels (`Host(gondola.179-198-200-73.sslip.io)`, entrypoints http/https, `tls.certresolver=letsencrypt`, a `compress` middleware, http to https redirect, service port 3000). Rooms live in memory: a redeploy closes open rooms, so redeploy between matches.
+
 ## When the scene runs on localhost but phones use another address
 
 Set `VITE_PUBLIC_ORIGIN` before `npm run dev`, for example `VITE_PUBLIC_ORIGIN=https://abc.trycloudflare.com npm run dev`; the QR then encodes that origin instead of `localhost`.
