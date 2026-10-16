@@ -6,10 +6,24 @@ Everything lives under `public/assets/`. The filenames below are the ones the co
 
 | Group | State | Files |
 |---|---|---|
-| Textures (walls, stone, wood, water, pole, laundry, window) | **In the repo** (`public/assets/textures/`), generated with ChatGPT, resized and cut out | 14 files, see the table in "Textures" below |
-| HDRI sky | To download | `public/assets/textures/sky.hdr` |
-| UI icons, crosshairs, logo, podium, favicon, lobby background, team flags, SUNK, glow, foam, roof tiles, shutters | **To generate** (Track C) | use the brief in "ChatGPT brief for Track C" below |
+| Textures (walls, stone, wood, water, pole, laundry, window) | **In the repo** (`public/assets/textures/`), generated with ChatGPT, resized and cut out | 13 files, see the table in "Textures" below |
+| HDRI sky | **Available locally** (CC0 Poly Haven Venice Sunset, 2K) | `public/assets/textures/sky.hdr`, provenance in `sky-license.md` |
+| UI icons, crosshairs, logo, podium, favicon, lobby background, team flags, SUNK, glow, foam, roof tiles, shutters | **Generated locally** with built-in image_gen | 30 new images: 25 under `public/assets/ui/`, 4 under `public/assets/textures/`, and `public/favicon.png` |
 | Sounds | **In the repo and playing** (`public/assets/sounds/`, 22 MP3 files, synthesised by `scripts/generate-sounds.py`, wired in `src/render/audio.ts`) | replace any file with a recording under the same name; see "Sounds" below |
+
+The 30-image generation pass is complete. Exact prompts and selected source images
+are recorded in `public/assets/image-generation-prompts.json`; dimensions and alpha
+checks are in `public/assets/image-audit.json`. All 30 images have the specified
+dimensions; the 26 transparent PNGs have an alpha channel. Icons were reviewed at
+64 px, logo/SUNK text visually checked, and foam/roof previews reviewed in repeat.
+Open `/assets/image-catalog.html` on the development server to review the images.
+
+Generation does not automatically wire these images into the game's HUD or
+renderer. Their consuming code is still a separate Track C/C6 integration task.
+The filename table in the generation brief below is authoritative: podium, foam
+and roof tiles are JPEG; transparent assets are PNG. No duplicate PNG versions
+are required for those three JPEG files. Optional phone backgrounds and lobby
+video remain unnecessary for the planned game.
 
 Notes for the code (Track C):
 - Opaque textures are **JPEG** (`.jpg`), not PNG: same look, a tenth of the size. Cut-outs with transparency are PNG.
@@ -92,9 +106,13 @@ Save as PNG, 1024x1024 unless stated, in `public/assets/textures/`. Ask for **se
 
 Tip for both ChatGPT and Gemini: add "no text, no watermark, no people" and, for tiles, "edges must wrap seamlessly". If a tile shows a seam, ask "make the left and right edges, and the top and bottom edges, match exactly".
 
-## ChatGPT brief for Track C (the images still to make)
+## ChatGPT brief for Track C (completed image set; prompts for future regeneration)
 
-Paste this whole block into one ChatGPT (or Gemini) chat, then ask for the images one at a time ("next image"). Save each with the exact file name, then drop them in the folder shown. ChatGPT often returns JPEG on a grey background even when asked for transparency: that is fine, send the files to whoever has the repo and the background is cut out the same way the window and laundry were (or use remove.bg).
+All 30 files below have now been generated. Keep this brief for future variants;
+do not regenerate or replace existing images unless a replacement is requested.
+The selected PNGs have real transparency. The original outputs are preserved in
+the generator's output directory, with project copies resized to the dimensions
+below. The selected logo was simplified to retain the wordmark and one gondola.
 
 ```
 You are making image assets for a browser party game called Gondola Royale: armed gondolas fight in a stylised 3D Venice at golden hour, seen on a big projector screen.
@@ -150,10 +168,10 @@ Save in `public/assets/ui/`.
 | `icon-cannon.png`, `icon-torpedo.png`, `icon-mortar.png`, `icon-watercannon.png` (alpha, 512x512) | "Flat white icon on transparent background, thick lines, game HUD style, no text, of: a cannon / a torpedo / a fireworks mortar tube / a water hose nozzle" |
 | `icon-shield.png`, `icon-mine.png`, `icon-boost.png`, `icon-smoke.png`, `icon-wave.png` (alpha, 512x512) | same style: "a round bubble shield / a spiked naval mine / a speed arrow with motion lines / a smoke cloud / a wave" |
 | `crosshair-neutral.png`, `crosshair-enemy.png`, `crosshair-lock.png` (alpha, 256x256) | "Flat white game crosshair on transparent background, thin ring with four short ticks" / "red diamond outline" / "double ring with four corner brackets", no text |
-| `podium-bg.png` (1920x1080) | "Venetian palace facade at golden hour with a red carpet dock and three wooden podium steps on the water, wide shot, warm light, no people, no text" |
+| `podium-bg.jpg` (1920x1080) | "Venetian palace facade at golden hour with a red carpet dock and three wooden podium steps on the water, wide shot, warm light, no people, no text" |
 | `phone-bg-pilot.png` etc. (optional) | the phone screens use plain CSS in the team colour; images are not needed |
 
-## More images to generate
+## Additional images (generated)
 
 | File | Where it goes | Prompt (paste as is, then the style line) |
 |---|---|---|
@@ -162,8 +180,8 @@ Save in `public/assets/ui/`.
 | `ui/team-rosso.png` ... `team-arancio.png` (512x512, alpha) | lobby roster and results | "A Venetian pennant flag with a winged lion emblem, colour #e04a3a, flat vector style, transparent background" (repeat with the team hex: Azzurro #3a8fe0, Verde #3fbf5f, Oro #f2b544, Viola #9b5de5, Arancio #ff8a2a) |
 | `ui/sunk.png` (1024x512, alpha) | SUNK overlay on the big screen and phones | "The word SUNK in chunky wooden carnival letters, splashed with water, transparent background" (this one keeps its text) |
 | `textures/lantern-glow.png` (256x256, alpha) | glow sprite on bow lanterns and crates | "Soft round warm light glow, white centre fading to fully transparent edges, no hard rim, on a black background" (then use the brightness as alpha) |
-| `textures/foam.png` (tileable, 512x512) | wake foam behind boats | "Seamless tileable texture of white sea foam and bubbles on dark water, top-down, flat lighting" |
-| `textures/roof-tiles.png` (tileable) | building roofs | "Seamless tileable texture of old terracotta Venetian roof tiles, top-down orthographic, flat lighting" |
+| `textures/foam.jpg` (tileable, 512x512) | wake foam behind boats | "Seamless tileable texture of white sea foam and bubbles on dark water, top-down, flat lighting" |
+| `textures/roof-tiles.jpg` (tileable) | building roofs | "Seamless tileable texture of old terracotta Venetian roof tiles, top-down orthographic, flat lighting" |
 | `textures/shutters-green.png` (512x1024, alpha) | instanced window shutters | "Pair of weathered green wooden Venetian shutters, open, front view, flat lighting, transparent background" |
 
 ## Sound effects by prompt (alternative to downloading)

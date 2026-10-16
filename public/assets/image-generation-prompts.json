@@ -1,0 +1,276 @@
+{
+  "generator": "Built-in image_gen",
+  "assets": [
+    {
+      "id": 0,
+      "path": "public/assets/ui/icon-pilot.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a gondolier holding an oar. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-a122d1be-673c-49ee-9350-24a5d362094e.png"
+    },
+    {
+      "id": 1,
+      "path": "public/assets/ui/icon-gunner.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a swivel cannon on a pivot mount. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-26ad074f-e81b-4068-8848-5b600bc98e72.png"
+    },
+    {
+      "id": 2,
+      "path": "public/assets/ui/icon-engineer.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a bucket with water splashing out. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-586fd0f1-def7-4f03-99ac-4addbe1ebe90.png"
+    },
+    {
+      "id": 3,
+      "path": "public/assets/ui/icon-watercannon.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a water hose nozzle with a spray. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-be1867f2-5fb2-4034-a5c6-a9f6f2b84f51.png"
+    },
+    {
+      "id": 4,
+      "path": "public/assets/ui/icon-cannon.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: an old ship cannon. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-3467afd0-7447-421d-8d03-15f7e121b6bd.png"
+    },
+    {
+      "id": 5,
+      "path": "public/assets/ui/icon-torpedo.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a torpedo. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-062eef12-9065-435a-bc30-66093c8c99f1.png"
+    },
+    {
+      "id": 6,
+      "path": "public/assets/ui/icon-mortar.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a fireworks mortar tube with a spark. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-20e86ec7-2063-45c6-bdb0-5c1ce5e26b6c.png"
+    },
+    {
+      "id": 7,
+      "path": "public/assets/ui/icon-shield.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a round bubble shield. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-6020d6b1-c90f-4880-930c-098f1ed3c122.png"
+    },
+    {
+      "id": 8,
+      "path": "public/assets/ui/icon-mine.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a spiked naval mine. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-2cc31d14-8686-4fdd-80e5-674b51a0f30a.png"
+    },
+    {
+      "id": 9,
+      "path": "public/assets/ui/icon-boost.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a speed arrow with motion lines. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-daad5e2f-1e1e-471e-8674-d5af5c6b7142.png"
+    },
+    {
+      "id": 10,
+      "path": "public/assets/ui/icon-smoke.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a smoke cloud. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-332de53a-8421-428c-ad28-aded5c7e6604.png"
+    },
+    {
+      "id": 11,
+      "path": "public/assets/ui/icon-wave.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: game HUD icon. Subject: a curling wave. Flat pure WHITE silhouette, thick consistent strokes, minimal detail readable at 64 pixels, no gradients, no shadows or lighting, no black outlines. Centred with 10% padding on genuine transparent background. PNG intended 512x512. No text. No people except the simplified gondolier pictogram when requested.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-4bf7a363-607d-4e50-93f2-62ed50a81888.png"
+    },
+    {
+      "id": 12,
+      "path": "public/assets/ui/crosshair-neutral.png",
+      "width": 256,
+      "height": 256,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: crosshair. thin white ring with four short ticks. Minimal flat geometry, perfectly centred with 10% padding on genuine transparent background. Intended 256x256 PNG. No text, no scene.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-d7900156-d451-4b07-a684-607da13f0270.png"
+    },
+    {
+      "id": 13,
+      "path": "public/assets/ui/crosshair-enemy.png",
+      "width": 256,
+      "height": 256,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: crosshair. red diamond outline. Minimal flat geometry, perfectly centred with 10% padding on genuine transparent background. Intended 256x256 PNG. No text, no scene.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-1814ee0b-80e9-4281-b8d0-ca1870d88bd6.png"
+    },
+    {
+      "id": 14,
+      "path": "public/assets/ui/crosshair-lock.png",
+      "width": 256,
+      "height": 256,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Asset type: crosshair. double white ring with four corner brackets. Minimal flat geometry, perfectly centred with 10% padding on genuine transparent background. Intended 256x256 PNG. No text, no scene.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-d3be2831-c5f9-4533-980b-1901b97e6b88.png"
+    },
+    {
+      "id": 15,
+      "path": "public/assets/ui/logo.png",
+      "width": 2048,
+      "height": 1024,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Game logo with exactly the text GONDOLA ROYALE in bold Venetian carnival lettering, gold with a dark red outline, a small black gondola silhouette under the text. No other text. Intended output dimensions 2048x1024. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-3a4c42ae-a748-4686-8149-3e33138ba3ea.png",
+      "refinementPrompt": "Edit target: supplied Gondola Royale logo. Simplify it to match the original asset brief. Keep the exact words GONDOLA ROYALE and the bold gold Venetian carnival lettering with dark red outline. REMOVE all architecture, sun, sky, water, splashes, flags, side gondolas, cannons and people. Retain ONLY the two-line gold title, with ONE SMALL solid BLACK unoccupied gondola silhouette directly underneath. No extra ornaments outside the lettering. Centre this isolated wordmark on genuine transparent background with generous padding, PNG intended 2048x1024. The result must be a simple game logo, no scenery or people."
+    },
+    {
+      "id": 16,
+      "path": "public/favicon.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Square app icon, a black Venetian gondola with a glowing golden lantern on a deep teal circle, bold simple shapes, flat vector style. Transparent outside the circle. Intended output dimensions 512x512. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-b7fc56b7-2df6-45ac-8f94-7a20471f7951.png"
+    },
+    {
+      "id": 17,
+      "path": "public/assets/ui/lobby-bg.jpg",
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Wide view of a Venetian canal at golden hour, gondolas moored, warm haze, soft focus, darker on the left third so white text stays readable. Intended output dimensions 1920x1080. Opaque full-bleed composition. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-5c222072-7af1-4699-94b4-886f4ecd402a.png"
+    },
+    {
+      "id": 18,
+      "path": "public/assets/ui/podium-bg.jpg",
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Venetian palace facade at golden hour with a red carpet dock and three wooden podium steps on the water, wide shot. Intended output dimensions 1920x1080. Opaque full-bleed composition. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-511a9aa3-09da-448e-b098-83ecbe602075.png"
+    },
+    {
+      "id": 19,
+      "path": "public/assets/ui/sunk.png",
+      "width": 1024,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. The exact word SUNK in chunky wooden carnival letters splashed with water, isolated on genuine transparent background. No other text. Intended output dimensions 1024x512. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-cbb23464-89f5-4654-8066-5097e5466442.png"
+    },
+    {
+      "id": 20,
+      "path": "public/assets/ui/team-rosso.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. A Venetian pennant flag with a winged lion emblem, flat vector style, dominant flag colour #e04a3a. Identical simple silhouette and emblem layout across the six team variants: pointed hanging pennant, central golden winged lion. No text. Intended output dimensions 512x512. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-08184a8c-6652-4165-b431-b7b4f74e3ffe.png"
+    },
+    {
+      "id": 21,
+      "path": "public/assets/ui/team-azzurro.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. A Venetian pennant flag with a winged lion emblem, flat vector style, dominant flag colour #3a8fe0. Identical simple silhouette and emblem layout across the six team variants: pointed hanging pennant, central golden winged lion. No text. Intended output dimensions 512x512. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-48b8c087-9037-4a2e-9e50-c113864efd58.png"
+    },
+    {
+      "id": 22,
+      "path": "public/assets/ui/team-verde.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. A Venetian pennant flag with a winged lion emblem, flat vector style, dominant flag colour #3fbf5f. Identical simple silhouette and emblem layout across the six team variants: pointed hanging pennant, central golden winged lion. No text. Intended output dimensions 512x512. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-d2dbfa97-6f2d-460a-8238-aa857b89a39a.png"
+    },
+    {
+      "id": 23,
+      "path": "public/assets/ui/team-oro.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. A Venetian pennant flag with a winged lion emblem, flat vector style, dominant flag colour #f2b544. Identical simple silhouette and emblem layout across the six team variants: pointed hanging pennant, central golden winged lion. No text. Intended output dimensions 512x512. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-046de2e5-ae4f-41ea-a71e-f359b3c604b4.png"
+    },
+    {
+      "id": 24,
+      "path": "public/assets/ui/team-viola.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. A Venetian pennant flag with a winged lion emblem, flat vector style, dominant flag colour #9b5de5. Identical simple silhouette and emblem layout across the six team variants: pointed hanging pennant, central golden winged lion. No text. Intended output dimensions 512x512. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-7de8a344-6042-4590-ac42-43c6638a87e2.png"
+    },
+    {
+      "id": 25,
+      "path": "public/assets/ui/team-arancio.png",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. A Venetian pennant flag with a winged lion emblem, flat vector style, dominant flag colour #ff8a2a. Identical simple silhouette and emblem layout across the six team variants: pointed hanging pennant, central golden winged lion. No text. Intended output dimensions 512x512. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-25b9ca1a-869a-44dd-b503-fe8998d68de9.png"
+    },
+    {
+      "id": 26,
+      "path": "public/assets/textures/lantern-glow.png",
+      "width": 256,
+      "height": 256,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Soft round warm light glow, white centre fading smoothly to fully transparent edges, no hard rim, no light fixture, no rays, no lens flare. A radial light sprite isolated on transparent background. Intended output dimensions 256x256. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-e3b3292c-aa7b-4d3c-8d83-0b6140a8e969.png"
+    },
+    {
+      "id": 27,
+      "path": "public/assets/textures/foam.jpg",
+      "width": 512,
+      "height": 512,
+      "transparent": false,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Seamless tileable texture of white sea foam and bubbles on dark water, top-down orthographic view, flat neutral lighting. All edges match perfectly, uniform scale, no focal feature. Intended output dimensions 512x512. Opaque full-bleed composition. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-571ad8ca-17d6-4994-a816-20a7f930f39b.png"
+    },
+    {
+      "id": 28,
+      "path": "public/assets/textures/roof-tiles.jpg",
+      "width": 1024,
+      "height": 1024,
+      "transparent": false,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. Seamless tileable texture of old terracotta Venetian roof tiles, top-down orthographic view, flat even neutral lighting, weathered warm terracotta material, all edges match perfectly. No perspective or cast shadows. Intended output dimensions 1024x1024. Opaque full-bleed composition. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-b2018a9c-1bc0-419c-88d3-579751802faf.png"
+    },
+    {
+      "id": 29,
+      "path": "public/assets/textures/shutters-green.png",
+      "width": 512,
+      "height": 1024,
+      "transparent": true,
+      "prompt": "Gondola Royale browser party game, armed gondolas in warm slightly stylised golden-hour Venice; clean readable shapes. Generate ONLY this single asset, no contact sheet, mockup, labels or watermark. One pair of weathered green wooden Venetian shutters, open, front orthographic view, flat even lighting. Isolated on genuinely transparent background, complete shutters inside frame, no wall or window glass. Intended output dimensions 512x1024. Preserve actual transparent alpha, no fake checkerboard or coloured backing. No people. No text unless the requested asset explicitly specifies text.",
+      "source": "/Users/ennioguzman/.codex/generated_images/01a1446f-7ee0-7cc3-9c05-66453845a224/exec-bf956636-3faf-418b-9cc8-f49b53c13e17.png"
+    }
+  ]
+}

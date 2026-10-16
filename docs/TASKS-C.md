@@ -20,8 +20,8 @@
 
 ## Should (by Gate 3)
 
-- [ ] **C6 Generate and drop in the assets** from `ASSETS.md`: textures, UI icons (Module 2's HUD uses them), logo, lobby background; download the sounds and the HDRI. Check every tile for seams.
-- [x] **C7 Audio.** *(done: `src/render/audio.ts` plays the 22 generated sounds in `public/assets/sounds/` from the `SimEvent`s, with lobby music, ambience, the Water Cannon loop, stereo panning across the map and M to mute; hooked into `src/render/index.ts` with three lines (create, `frame()` in `render()`, `unlock()`), keep them when the research renderer replaces the placeholder.)* `AudioListener` unlocked on the first click (`unlockAudio`), ambient loop, cannon, splash, explosion, pickup, horn at battle start, lobby loop; driven by `SimEvent`s passed to `render()`.
-- [ ] **C8 Crew.** *(Mostly done in `src/render/avatars.ts`: the players' picked people, seated by role, rowing, aiming, bailing, sway, sinking and cheering. Carry `CrewAvatars` into the research gondola rather than its `CrewSet`; see HANDOFF 4b.)* Code-built characters (capsules) recommended: Pilot rows at the stern faster on GAS (`boat.gas`, `rowPhase`), Gunner turns with `aimYaw`, Engineer bails on `shake`; lean into turns, tumble on sinking.
+- [x] **C6 Generate and drop in the images** from `ASSETS.md`: textures, UI icons, logo, lobby background, and HDRI. Dimensions and transparency are audited; tile previews are reviewed. The 22 sounds are also in the repo.
+- [x] **C7 Audio.** `src/render/audio.ts` plays the 22 sounds from `SimEvent`s, with lobby music, ambience, the Water Cannon loop, stereo panning and M to mute. The Track C renderer calls `frame()`, `unlock()` and `dispose()`.
+- [x] **C8 Crew.** Player-selected characters are integrated through `CrewAvatars` in the gondola renderer. They sit by role, row, aim, bail, sway, react to sinking, and cheer for the winning team.
 - [ ] **C9 VFX.** Muzzle flash and smoke (`fired`), splash (`splash`, misses), explosion water column (`hit`/`sunk`), wake foam, respawn splash, fireworks for the Mortar and the podium.
 - [ ] **C10 Performance pass and podium.** Quality presets, LOD beyond 120 m, draw calls per viewport (`renderer.info`), shadow map size; podium view on the results screen. Cut order if slow: draw distance, shadows, building detail.
