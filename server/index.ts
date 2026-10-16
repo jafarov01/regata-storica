@@ -7,6 +7,7 @@
  *
  * Env: RELAY_PORT (default 3000), PORT (production only), HOST (default 0.0.0.0), ALLOWED_ORIGINS (comma list, optional).
  */
+import compression from 'compression';
 import express from 'express';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
@@ -60,6 +61,9 @@ app.get('/api/rooms/:code', (req, res) => {
 });
 
 if (existsSync(INDEX)) {
+  // Gzip the bundles: through a tunnel the host's upload speed is the bottleneck, and the
+  // big-screen chunk shrinks from 4 MB to 1.5 MB. Behind Traefik (VPS) this is harmless.
+  app.use(compression({ threshold: 1024 }));
   // Vite names assets with a content hash: cache forever. Everything else: revalidate.
   app.use('/assets', express.static(path.join(DIST, 'assets'), { immutable: true, maxAge: '1y', index: false }));
   app.use(express.static(DIST, { index: false, maxAge: 0 }));
