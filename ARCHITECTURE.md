@@ -88,9 +88,9 @@ Read-only for agents. A change is agreed out loud, made by one person, with `tes
 | `src/net/identity.ts`, `qr.ts`, `scanner.ts` | A | real | token and nickname, join QR, fallback in-app scanner |
 | `src/phone/sensors.ts`, `sensorMath.ts`, `sensorSim.ts`, `pads.ts`, `wake.ts` | A | real (sensors research, 21 tests) | permission flow, steering from gravity, gyro yaw, shake, multi-touch pads, wake lock, desktop simulator (`?sim=1`) |
 | `src/phone/sender.ts`, `controller.ts` | A | real | 30 Hz sampler with running totals; wires sensors, pads and sender |
-| `src/phone/main.ts`, `phone.css` | A | baseline shell | join screen, lobby, Enable controls, pads, one-line HUD strip |
+| `src/phone/main.ts`, `phone.css` | A | baseline | join screen, lobby, Enable controls; screens follow the match phase; role pads with wheel / compass / water meter; status strip |
 | `src/landing/index.ts` | A | real | SCENE / PLAYER buttons |
-| `src/sim/index.ts` | B | placeholder | `Sim` with real roster, match flow, input holding and aim; kinematic boats with a grid wall check; no weapons, crates, kills or respawn yet |
+| `src/sim/index.ts` | B | placeholder | `Sim` with real roster, match flow, input holding and aim; kinematic boats with a grid wall check; placeholder Water Cannon; no crates, kills or respawn yet |
 | `src/scene/main.ts` | B | real | wiring and the fixed-step loop |
 | `src/scene/layout.ts` | B | real | split-screen rects for 1 to 6 teams |
 | `src/scene/keyboard.ts` | B | real | every role from the keyboard, keyboard crews, bot teams |
@@ -100,6 +100,7 @@ Read-only for agents. A change is agreed out loud, made by one person, with `tes
 
 ## 6. Where each track plugs in
 
+- Task lists per module: `docs/TASKS.md`.
 - **Track B** replaces the inside of `src/sim/index.ts` with the Rapier model and rules from `docs/research/physics/final.md` and `docs/research/rules/final.md`, keeping the `Sim` interface. Split it into files (`physics.ts`, `boat.ts`, `teams.ts`, `rules.ts`, `items.ts`, `projectiles.ts`, `aim.ts`) as the research did. `tests/baseline.test.ts` must keep passing.
 - **Track C** replaces `src/render/index.ts` with the research renderer in `docs/research/render/code` behind the `Renderer` interface. That code has its own state slice and yaw convention (research yaw = -PI/2 - repo yaw), so write one adapter function `GameState -> RenderState` at the boundary instead of changing either side.
 - **Track A** polishes `src/phone/main.ts` into the real screens (wheel graphic, Gunner compass, Engineer meter, sunk and results screens, team-colour background) from the `Hud` it already receives, and owns the tunnel and backup host.
