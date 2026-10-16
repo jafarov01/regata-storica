@@ -1,4 +1,4 @@
-# Assets: sounds to download, images to generate
+# Assets: sounds and images
 
 Everything lives under `public/assets/`. The filenames below are the ones the code should load; keep them so Track C's loaders and the agents agree. Prefer CC0 sources (no attribution needed on the big screen).
 
@@ -9,7 +9,7 @@ Everything lives under `public/assets/`. The filenames below are the ones the co
 | Textures (walls, stone, wood, water, pole, laundry, window) | **In the repo** (`public/assets/textures/`), generated with ChatGPT, resized and cut out | 14 files, see the table in "Textures" below |
 | HDRI sky | To download | `public/assets/textures/sky.hdr` |
 | UI icons, crosshairs, logo, podium, favicon, lobby background, team flags, SUNK, glow, foam, roof tiles, shutters | **To generate** (Track C) | use the brief in "ChatGPT brief for Track C" below |
-| Sounds | To download or generate | `public/assets/sounds/`, tables below |
+| Sounds | **In the repo and playing** (`public/assets/sounds/`, 22 MP3 files, synthesised by `scripts/generate-sounds.py`, wired in `src/render/audio.ts`) | replace any file with a recording under the same name; see "Sounds" below |
 
 Notes for the code (Track C):
 - Opaque textures are **JPEG** (`.jpg`), not PNG: same look, a tenth of the size. Cut-outs with transparency are PNG.
@@ -25,28 +25,47 @@ Notes for the code (Track C):
 - **Check before committing:** tiles have no seams (place two copies side by side), icons read at 64 px, file names exactly as below (the code loads these names).
 - **Priority:** Gate 2 needs nothing (the game runs on placeholders). For Gate 3: `sky.hdr`, the plaster/stone/water textures, the HUD icons and the sounds marked MVP first; logo and podium last.
 
-## Sounds (download, CC0)
+## Sounds (in the repo, generated)
 
-Put them in `public/assets/sounds/`, OGG or MP3, mono, 44.1 kHz, trimmed, normalised to about -3 dB.
+All 22 sounds are **in `public/assets/sounds/` as MP3** and play in the game. They are synthesised by `scripts/generate-sounds.py` (numpy + ffmpeg; `python3 scripts/generate-sounds.py`, or name files to rebuild only those), so there is nothing to download and no licence to track. `src/render/audio.ts` loads them after the host's first click or key press and plays them from the game events.
+
+| File | When it plays |
+|---|---|
+| `cannon`, `torpedo-launch`, `mortar-launch` | a Gunner fires that weapon |
+| `water-cannon` (loop) | while any crew holds FIRE on the Water Cannon; louder with more crews |
+| `explosion-water` | a lethal hit, a lethal ram |
+| `splash-small` / `splash-big` | Water Cannon hits, misses, sinking, the Wave power |
+| `firework-burst` | the Mortar's splash |
+| `shield-up` / `shield-hit` | Shield picked up / a hit absorbed |
+| `pickup`, `respawn`, `boost` | crate collected, boat back at a dock, Boost used |
+| `wood-bump`, `wood-scrape` | hitting walls (louder with speed), rams, dropping a Mine |
+| `beep`, `horn` | countdown 3-2-1, battle (and sudden death) starts |
+| `lobby-loop` (loop) | lobby and results; fades out for the match |
+| `win-fanfare` | the winner is decided |
+| `water-lapping` (loop), `seagulls`, `bells-distant` | ambience all the time; gulls every 15 to 30 s, bells every 50 to 90 s |
+
+Controls: **M** mutes and unmutes on the scene PC (remembered). Dev console: `grAudio.status()`, `grAudio.play('cannon')`.
+
+To use a real recording instead: export it as MP3 (mono, 44.1 kHz, trimmed, peak about -1 dB, loops cut on a zero crossing) and save it under the same name; no code change. Download options if you want recordings:
 
 | File | Used for | Where to get it (search terms) |
 |---|---|---|
-| `water-lapping.ogg` | ambient loop on the scene | freesound.org "water lapping gentle loop" (CC0 filter); or Kenney "Nature Sounds" pack |
-| `seagulls.ogg` | ambient, sparse | freesound.org "seagulls distant" CC0 |
-| `bells-distant.ogg` | ambient, every 60 to 90 s | freesound.org "church bells distant" CC0 |
-| `cannon.ogg` | Cannon shot | freesound.org "cannon shot" CC0, or Kenney "Impact Sounds" |
-| `torpedo-launch.ogg` | Torpedo launch | freesound.org "whoosh underwater" CC0 |
-| `mortar-launch.ogg`, `firework-burst.ogg` | Mortar | freesound.org "firework launch", "firework explosion" CC0 |
-| `water-cannon.ogg` | stream loop while FIRE is held | freesound.org "hose spray loop" CC0 |
-| `splash-small.ogg`, `splash-big.ogg` | cannonball splash, sinking | freesound.org "water splash" CC0 |
-| `explosion-water.ogg` | lethal hit | freesound.org "explosion water" CC0 |
-| `shield-up.ogg`, `shield-hit.ogg` | Shield | Kenney "Sci-fi Sounds" (CC0) |
-| `pickup.ogg` | crate collected | Kenney "Digital Audio" pack |
-| `wood-scrape.ogg`, `wood-bump.ogg` | wall scrape, boat bump | freesound.org "wood creak", "boat hull bump" CC0 |
-| `horn.ogg` | round start | freesound.org "ship horn" CC0 |
-| `beep.ogg` | countdown 3-2-1 | Kenney "UI Audio" |
-| `lobby-loop.ogg` | accordion or mandolin loop in the lobby | freemusicarchive.org or pixabay.com music, "italian accordion" (check the licence allows public performance) |
-| `win-fanfare.ogg` | podium | pixabay.com sound effects "fanfare" |
+| `water-lapping.mp3` | ambient loop on the scene | freesound.org "water lapping gentle loop" (CC0 filter); or Kenney "Nature Sounds" pack |
+| `seagulls.mp3` | ambient, sparse | freesound.org "seagulls distant" CC0 |
+| `bells-distant.mp3` | ambient, every 60 to 90 s | freesound.org "church bells distant" CC0 |
+| `cannon.mp3` | Cannon shot | freesound.org "cannon shot" CC0, or Kenney "Impact Sounds" |
+| `torpedo-launch.mp3` | Torpedo launch | freesound.org "whoosh underwater" CC0 |
+| `mortar-launch.mp3`, `firework-burst.mp3` | Mortar | freesound.org "firework launch", "firework explosion" CC0 |
+| `water-cannon.mp3` | stream loop while FIRE is held | freesound.org "hose spray loop" CC0 |
+| `splash-small.mp3`, `splash-big.mp3` | cannonball splash, sinking | freesound.org "water splash" CC0 |
+| `explosion-water.mp3` | lethal hit | freesound.org "explosion water" CC0 |
+| `shield-up.mp3`, `shield-hit.mp3` | Shield | Kenney "Sci-fi Sounds" (CC0) |
+| `pickup.mp3` | crate collected | Kenney "Digital Audio" pack |
+| `wood-scrape.mp3`, `wood-bump.mp3` | wall scrape, boat bump | freesound.org "wood creak", "boat hull bump" CC0 |
+| `horn.mp3` | round start | freesound.org "ship horn" CC0 |
+| `beep.mp3` | countdown 3-2-1 | Kenney "UI Audio" |
+| `lobby-loop.mp3` | accordion or mandolin loop in the lobby | freemusicarchive.org or pixabay.com music, "italian accordion" (check the licence allows public performance) |
+| `win-fanfare.mp3` | podium | pixabay.com sound effects "fanfare" |
 
 Kenney packs: https://kenney.nl/assets (all CC0). Freesound: https://freesound.org (filter licence = Creative Commons 0). Pixabay: https://pixabay.com/sound-effects/ (Pixabay licence, free).
 
@@ -149,24 +168,24 @@ Save in `public/assets/ui/`.
 
 ## Sound effects by prompt (alternative to downloading)
 
-If downloading takes too long, generate them with an AI sound-effect tool (for example ElevenLabs Sound Effects). Keep each under 3 s unless it is a loop; export OGG or MP3, mono.
+If downloading takes too long, generate them with an AI sound-effect tool (for example ElevenLabs Sound Effects). Keep each under 3 s unless it is a loop; export MP3, mono.
 
 | File | Prompt |
 |---|---|
-| `cannon.ogg` (MVP) | "Old ship cannon firing, deep boom with a short wooden rattle, outdoors over water, 1.5 seconds" |
-| `water-cannon.ogg` (MVP) | "Strong water hose spraying in a steady stream, loopable, 2 seconds" |
-| `splash-small.ogg` (MVP) | "Cannonball dropping into a canal, single splash, 1 second" |
-| `explosion-water.ogg` (MVP) | "Underwater explosion lifting a column of water, then debris splashing down, 2.5 seconds" |
-| `pickup.ogg` (MVP) | "Cheerful wooden crate pickup chime, short and bright, 0.5 seconds" |
-| `horn.ogg` (MVP) | "Venetian ship horn, one long low blast, 2 seconds" |
-| `beep.ogg` (MVP) | "Single clean countdown beep, game UI, 0.3 seconds" |
-| `torpedo-launch.ogg` | "Torpedo launched from a small boat, mechanical thunk then bubbling whoosh, 1.5 seconds" |
-| `shield-up.ogg`, `shield-hit.ogg` | "Magical bubble shield powering up, shimmering hum, 1 second" / "Energy shield absorbing an impact, glassy zap, 0.8 seconds" |
-| `wood-bump.ogg` | "Wooden boat hull bumping a stone wall, dull knock and creak, 0.8 seconds" |
-| `water-lapping.ogg` | "Gentle canal water lapping against stone walls, calm, seamless loop, 20 seconds" |
-| `seagulls.ogg`, `bells-distant.ogg` | "Distant seagulls over a lagoon, sparse calls, 10 seconds" / "Distant Venetian church bells, two slow rings, 6 seconds" |
-| `lobby-loop.ogg` | "Light Italian accordion waltz, cheerful, seamless loop, 30 seconds" |
-| `win-fanfare.ogg` | "Short festive brass fanfare for a winner, 3 seconds" |
+| `cannon.mp3` (MVP) | "Old ship cannon firing, deep boom with a short wooden rattle, outdoors over water, 1.5 seconds" |
+| `water-cannon.mp3` (MVP) | "Strong water hose spraying in a steady stream, loopable, 2 seconds" |
+| `splash-small.mp3` (MVP) | "Cannonball dropping into a canal, single splash, 1 second" |
+| `explosion-water.mp3` (MVP) | "Underwater explosion lifting a column of water, then debris splashing down, 2.5 seconds" |
+| `pickup.mp3` (MVP) | "Cheerful wooden crate pickup chime, short and bright, 0.5 seconds" |
+| `horn.mp3` (MVP) | "Venetian ship horn, one long low blast, 2 seconds" |
+| `beep.mp3` (MVP) | "Single clean countdown beep, game UI, 0.3 seconds" |
+| `torpedo-launch.mp3` | "Torpedo launched from a small boat, mechanical thunk then bubbling whoosh, 1.5 seconds" |
+| `shield-up.mp3`, `shield-hit.mp3` | "Magical bubble shield powering up, shimmering hum, 1 second" / "Energy shield absorbing an impact, glassy zap, 0.8 seconds" |
+| `wood-bump.mp3` | "Wooden boat hull bumping a stone wall, dull knock and creak, 0.8 seconds" |
+| `water-lapping.mp3` | "Gentle canal water lapping against stone walls, calm, seamless loop, 20 seconds" |
+| `seagulls.mp3`, `bells-distant.mp3` | "Distant seagulls over a lagoon, sparse calls, 10 seconds" / "Distant Venetian church bells, two slow rings, 6 seconds" |
+| `lobby-loop.mp3` | "Light Italian accordion waltz, cheerful, seamless loop, 30 seconds" |
+| `win-fanfare.mp3` | "Short festive brass fanfare for a winner, 3 seconds" |
 
 ## Optional videos (Gemini Veo or ChatGPT Sora) for the lobby screen
 

@@ -41,6 +41,7 @@ import { lerp, lerpAngle, smoothingAlpha } from '@shared/math.ts';
 import type { GameState, SimEvent } from '@shared/state.ts';
 import { toGl } from '../scene/layout.ts';
 import { CrewAvatars, type CrewMember } from './avatars.ts';
+import { GameAudio } from './audio.ts';
 
 const PLASTER = [0xd9a066, 0xc8694a, 0xe0b4a8, 0xeedfc0, 0xb98a5a];
 const WATER = 0x1f4a48;
@@ -61,6 +62,7 @@ interface Rig {
 }
 
 export function createRenderer(canvas: HTMLCanvasElement, map: ParsedMap): Renderer {
+  const audio = new GameAudio(map.worldW / 2);
   const renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1);
   renderer.autoClear = false;
@@ -172,7 +174,8 @@ export function createRenderer(canvas: HTMLCanvasElement, map: ParsedMap): Rende
   const tmp = new Vector3();
 
   return {
-    render(state: GameState, _events: readonly SimEvent[], layout: Layout, views: readonly CameraView[], alpha: number): void {
+    render(state: GameState, events: readonly SimEvent[], layout: Layout, views: readonly CameraView[], alpha: number): void {
+      audio.frame(state, events);
       const now = performance.now();
       const dt = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
@@ -273,9 +276,10 @@ export function createRenderer(canvas: HTMLCanvasElement, map: ParsedMap): Rende
       // Track C: collider overlay, free camera, stats, wireframe.
     },
     unlockAudio(): void {
-      // Track C: AudioListener / AudioContext resume on the host's first click.
+      audio.unlock();
     },
     dispose(): void {
+      audio.dispose();
       renderer.dispose();
     },
   };
