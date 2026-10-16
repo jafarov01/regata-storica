@@ -107,8 +107,8 @@ export const PHONE = {
   steerFullLockDeg: 35,
   /** Low-pass time constant for the gravity vector, seconds. */
   gravityFilterTau: 0.08,
-  /** Gyro aim: turning the phone 45 deg turns the view 90 deg. playtest */
-  gyroGain: 2,
+  /** Gyro aim: how many times faster than the phone the view turns. playtest */
+  gyroGain: 2.5,
   /** Gyro aim: ignore turn rates below this (hand tremor). playtest */
   gyroDeadZoneDegPerSec: 2,
   /** Gyro aim: low-pass on the turn rate, seconds. Takes the sensor noise out, lags a real turn by about this. */
@@ -124,6 +124,12 @@ export const PHONE = {
 } as const;
 
 export const AIM = {
+  /**
+   * The aim is held relative to the bow: when the Pilot turns, the Gunner's view turns with the
+   * boat and the gyro offsets it from the bow. false = the spec's world-stabilised aim, where a
+   * turning boat leaves the view behind and the Gunner has to follow by hand. playtest
+   */
+  followBow: true,
   /** Cannon shots bend up to this toward the nearest enemy near the aim line. playtest */
   assistMaxBendDeg: 4,
   /** "Near the aim line" for aim assist: half-angle of the cone. */

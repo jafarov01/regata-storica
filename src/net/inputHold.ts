@@ -68,6 +68,8 @@ export class InputHold {
  */
 export class AimTracker {
   private base = 0;
+  /** Bow-relative mode: offset such that rel + yaw is the aim's angle from the bow. */
+  private rel = 0;
   private ep = -1;
   /** -1 until the first packet: a counter is only a tap relative to one we have already seen. */
   private lastFc = -1;
@@ -91,9 +93,26 @@ export class AimTracker {
     return this.base + pkt.yaw;
   }
 
+  /**
+   * Bow-relative aim (AIM.followBow): the offset of the aim from the bow, in radians, from the
+   * same packets. Zero at every recenter/calibrate (new epoch) and after resetBehindBow; the
+   * under-crosshair gain shaves each new packet's dYaw as in apply(). The caller adds the bow.
+   */
+  applyRelative(pkt: GunnerIn, gain = 1): number {
+    if (pkt.ep !== this.ep) {
+      this.ep = pkt.ep;
+      this.rel = -pkt.yaw;
+    } else if (pkt.seq !== this.lastSeq && gain < 1) {
+      this.rel -= (1 - gain) * pkt.dYaw;
+    }
+    this.lastSeq = pkt.seq;
+    return this.rel + pkt.yaw;
+  }
+
   /** Call on respawn (the spec resets the view behind the bow). */
   resetBehindBow(pkt: GunnerIn | null, bowHeading: number): void {
     this.base = bowHeading - (pkt?.yaw ?? 0);
+    this.rel = -(pkt?.yaw ?? 0);
     if (pkt) this.ep = pkt.ep;
   }
 

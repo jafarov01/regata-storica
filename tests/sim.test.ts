@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { AIM, BOAT, DEFAULT_WEAPON, MATCH, MINE, RESPAWN, SHIELD, SIM, TIERS, WEAPONS } from '../shared/config.ts';
 import type { InputMsg } from '../shared/protocol.ts';
 import type { SimEvent } from '../shared/state.ts';
+import { wrapAngle } from '../shared/math.ts';
 import { createSim, type GameSim } from '../src/sim/index.ts';
 import { LobbySync, buildHud, forwardEvents } from '../src/scene/phoneFeed.ts';
 import { CameraViews } from '../src/scene/views.ts';
@@ -465,6 +466,23 @@ describe('audit fixes (Track B review)', () => {
     sim.step();
     expect(boat(sim, 1).shieldUntil).toBeGreaterThan(sim.state.time);
     expect(boat(sim, 1).powers[0]).toBeNull();
+  });
+
+  it.skipIf(!AIM.followBow)('the aim turns with the boat and the gyro offsets it from the bow', async () => {
+    const sim = await duel();
+    sim.debug.teleport(0, OPEN.x, OPEN.z, 0);
+    sim.applyInput('g0', gunner(0, false, 0.3));
+    steps(sim, 0.1);
+    expect(boat(sim, 0).aimYaw).toBeCloseTo(0.3, 3);
+    // The Pilot turns hard for a while: the view follows the bow and the gyro offset stays.
+    steps(sim, 1.5, () => sim.applyInput('p0', pilot(1, true)));
+    const bow = boat(sim, 0).pose.yaw;
+    expect(Math.abs(bow)).toBeGreaterThan(0.3);
+    expect(wrapAngle(boat(sim, 0).aimYaw - bow)).toBeCloseTo(0.3, 2);
+    // RECENTER (new epoch, yaw restarts at 0) puts the view back on the bow.
+    sim.applyInput('g0', gunner(0, false, 0, 1));
+    steps(sim, 0.1);
+    expect(wrapAngle(boat(sim, 0).aimYaw - boat(sim, 0).pose.yaw)).toBeCloseTo(0, 2);
   });
 
   it('the gyro gain drops under the crosshair also while it shows a Torpedo lock', async () => {

@@ -61,7 +61,7 @@ export class GameSim implements Sim {
   private readonly inputs = new Map<string, InputMsg>();
   private readonly aims = new Map<string, AimTracker>();
   /** Per Gunner: the packet-to-packet glide of the aim (see glideAim). */
-  private readonly aimGlide = new Map<string, { from: number; to: number; t: number; seq: number; ep: number }>();
+  private readonly aimGlide = new Map<string, { from: number; to: number; t: number; seq: number; ep: number; value: number }>();
   private readonly uses = new Map<string, AimTracker>();
   private readonly crew: CrewFrame[] = [];
   private readonly rng = makeRng(1);
@@ -367,8 +367,15 @@ export class GameSim implements Sim {
         }
         // The gain drops whenever an enemy is under the crosshair, also while a lock or hit shows.
         const gain = boat.aimTarget !== null ? AIM.gainUnderCrosshair : 1;
-        const aim = tracker.apply(input, boat.pose.yaw, gain);
-        if (Number.isFinite(aim)) boat.aimYaw = this.glideAim(id, input, wrapAngle(aim), boat.aimYaw);
+        if (AIM.followBow) {
+          // The view turns with the boat; the gyro reading is an offset from the bow, glided
+          // packet to packet, and the bow is added afterwards at the sim rate.
+          const offset = tracker.applyRelative(input, gain);
+          if (Number.isFinite(offset)) boat.aimYaw = wrapAngle(boat.pose.yaw + this.glideAim(id, input, wrapAngle(offset)));
+        } else {
+          const aim = tracker.apply(input, boat.pose.yaw, gain);
+          if (Number.isFinite(aim)) boat.aimYaw = this.glideAim(id, input, wrapAngle(aim));
+        }
         frame.fireHeld = input.fire && !dropped;
         // Taps are always consumed, but only count in a fight: a tap in the countdown is not a queued shot.
         if (tracker.takeFireTap(input) && live) this.weapons.tap(boat.team);
@@ -389,10 +396,10 @@ export class GameSim implements Sim {
    * delay. A recenter or calibrate (new epoch) snaps; so does a re-base without a new packet
    * (respawn).
    */
-  private glideAim(id: string, input: GunnerIn, target: number, current: number): number {
+  private glideAim(id: string, input: GunnerIn, target: number): number {
     let g = this.aimGlide.get(id);
     if (!g) {
-      g = { from: target, to: target, t: 1, seq: input.seq, ep: input.ep };
+      g = { from: target, to: target, t: 1, seq: input.seq, ep: input.ep, value: target };
       this.aimGlide.set(id, g);
       return target;
     }
@@ -400,21 +407,22 @@ export class GameSim implements Sim {
       g.seq = input.seq;
       // A reading more than a quarter turn from the current aim is a discontinuity (recenter,
       // reload, a phone that changed hands), not a hand motion: no sweep across the scene.
-      if (input.ep !== g.ep || Math.abs(wrapAngle(target - current)) > 1.0) {
+      if (input.ep !== g.ep || Math.abs(wrapAngle(target - g.value)) > 1.0) {
         g.ep = input.ep;
         g.from = g.to = target;
         g.t = 1;
       } else {
-        g.from = current;
+        g.from = g.value;
         g.to = target;
         g.t = 0;
       }
-    } else if (Math.abs(wrapAngle(target - g.to)) > 1e-6) {
-      g.from = g.to = target;
-      g.t = 1;
+    } else {
+      // Re-based without a new packet (gain drop, respawn): head straight for the new reading.
+      g.to = target;
     }
     g.t = Math.min(1, g.t + SIM.dt * PHONE.inputHz);
-    return lerpAngle(g.from, g.to, g.t);
+    g.value = lerpAngle(g.from, g.to, g.t);
+    return g.value;
   }
 
   private takePowerTap(id: string, team: number, uc: number, use: 0 | 1 | null): void {
