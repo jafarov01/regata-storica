@@ -16,12 +16,14 @@
  * names carry data-* attributes so icons from public/assets/ui/ can replace them in CSS.
  */
 import type { CameraView, Layout } from '@shared/api.ts';
-import { MINIMAP, POWERS, WEAPONS } from '@shared/config.ts';
+import { MATCH, MINIMAP, POWERS, WEAPONS } from '@shared/config.ts';
 import type { ParsedMap } from '@shared/map.ts';
 import { wrapAngle } from '@shared/math.ts';
 import type { BoatState, GameState, KillCause, Role } from '@shared/state.ts';
+import { dropIcon, ferroMark, powerIcon, roleIcon, weaponIcon } from '../ui/icons.ts';
 
-const ROLE_ICON: Record<Role, string> = { pilot: 'Pilot', gunner: 'Gunner', engineer: 'Engineer' };
+const ROLE_LABEL: Record<Role, string> = { pilot: 'Pilot', gunner: 'Gunner', engineer: 'Engineer' };
+const ROLES_IN_ORDER: readonly Role[] = ['pilot', 'gunner', 'engineer'];
 const CAUSE_LABEL: Record<KillCause, string> = {
   watercannon: 'the Water Cannon',
   cannon: 'a Cannon',
@@ -58,12 +60,28 @@ function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
+/** The icon for what sank a boat: the weapon, the Mine, or the Boost for a ram. */
+function causeIcon(cause: KillCause): string {
+  if (cause === 'mine') return powerIcon('mine');
+  if (cause === 'ram') return powerIcon('boost');
+  return weaponIcon(cause);
+}
+
+/** One kill feed row: killer, what sank it, victim; the sentence is there for screen readers. */
 export function killFeedText(state: GameState, killer: number, victim: number, cause: KillCause): string {
   const k = state.teams[killer];
   const v = state.teams[victim];
-  const ks = `<b style="color:${k?.colour ?? '#fff'}">${esc(k?.name ?? '?')}</b>`;
-  const vs = `<b style="color:${v?.colour ?? '#fff'}">${esc(v?.name ?? '?')}</b>`;
-  return cause === 'ram' ? `${ks} rammed ${vs}` : `${ks} sank ${vs} with ${CAUSE_LABEL[cause]}`;
+  const ks = `<b style="--team:${k?.colour ?? '#fff'}">${esc(k?.name ?? '?')}</b>`;
+  const vs = `<b style="--team:${v?.colour ?? '#fff'}">${esc(v?.name ?? '?')}</b>`;
+  const sentence = cause === 'ram' ? `${k?.name ?? '?'} rammed ${v?.name ?? '?'}` : `${k?.name ?? '?'} sank ${v?.name ?? '?'} with ${CAUSE_LABEL[cause]}`;
+  return `${ks}<span class="cause" title="${esc(CAUSE_LABEL[cause])}">${causeIcon(cause)}</span>${vs}<span class="sr-only">${esc(sentence)}</span>`;
+}
+
+/** Ammo as pips while they fit, as a number past that; the Water Cannon never runs out. */
+function ammoHtml(ammo: number): string {
+  if (!Number.isFinite(ammo)) return '<span class="ammo-inf" title="Unlimited">&infin;</span>';
+  if (ammo > 10) return `<span class="ammo-num">${ammo}</span>`;
+  return `<span class="pips" title="${ammo} shots">${'<i></i>'.repeat(Math.max(0, ammo))}</span>`;
 }
 
 /** Shared minimap rule: lagoon boats, boats that fired lately, and sudden-death crews are visible. */
@@ -87,6 +105,9 @@ export class SceneHud {
   private readonly cells: HTMLElement;
   private readonly centre: HTMLElement;
   private readonly minimap: HTMLCanvasElement;
+  private readonly minimapFrame: HTMLElement;
+  /** Players already shown in the lobby: only newcomers get the join animation. */
+  private readonly seen = new Set<string>();
   private readonly cache = new WeakMap<HTMLElement, string>();
   private wallsLayer: HTMLCanvasElement | null = null;
   /** Where the minimap is actually drawn (CSS px), so corner boxes can step aside. */
@@ -99,23 +120,29 @@ export class SceneHud {
   ) {
     root.innerHTML = `
       <section class="lobby-panel">
+        <header class="lobby-head">
+          ${ferroMark()}
+          <h1 class="display">Gondola Royale</h1>
+        </header>
         <div class="join">
-          <canvas class="qr"></canvas>
-          <div class="code"></div>
+          <p class="join-step">Scan with your phone camera to join</p>
+          <div class="qr-plate"><canvas class="qr"></canvas></div>
+          <div class="code-sign sign"><span>Room code</span><b class="code"></b></div>
           <div class="url"></div>
         </div>
         <div class="lobby-side">
-          <h1>Gondola Royale</h1>
           <div class="roster"></div>
-          <p class="start"></p>
-          <div class="host-buttons"></div>
-          <p class="keys">Enter start · K keyboard crew · O bot team · T team size · 1-6 focus · WASD drive · arrows aim · Space fire · R recenter · Q/E powers · B bail · P pause · Esc lobby</p>
+          <div class="lobby-foot">
+            <p class="start"></p>
+            <div class="host-buttons"></div>
+            <p class="keys"><kbd>Enter</kbd> start <kbd>K</kbd> keyboard crew <kbd>O</kbd> bot crew <kbd>T</kbd> team size <kbd>1</kbd>-<kbd>6</kbd> focus a crew <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> drive <kbd>&larr;</kbd><kbd>&rarr;</kbd> aim <kbd>Space</kbd> fire <kbd>R</kbd> recenter <kbd>Q</kbd><kbd>E</kbd> powers <kbd>B</kbd> bail <kbd>P</kbd> pause <kbd>Esc</kbd> lobby</p>
+          </div>
         </div>
       </section>
       <div class="top-bar"></div>
       <div class="kill-feed"></div>
       <div class="cells"></div>
-      <canvas class="minimap"></canvas>
+      <div class="minimap-frame"><canvas class="minimap"></canvas></div>
       <div class="centre"></div>`;
     const q = <T extends HTMLElement>(sel: string): T => {
       const el = root.querySelector<T>(sel);
@@ -134,6 +161,7 @@ export class SceneHud {
     this.cells = q('.cells');
     this.centre = q('.centre');
     this.minimap = q<HTMLCanvasElement>('.minimap');
+    this.minimapFrame = q('.minimap-frame');
     root.addEventListener('click', (e) => {
       const button = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-action]');
       if (!button) return;
@@ -153,23 +181,37 @@ export class SceneHud {
     const inLobby = state.phase === 'lobby';
     this.lobby.hidden = !inLobby;
     this.topBar.hidden = inLobby;
-    this.feed.hidden = inLobby;
-    this.minimap.hidden = inLobby || state.phase === 'results';
+    this.feed.hidden = inLobby || state.phase === 'results';
+    this.minimapFrame.hidden = inLobby || state.phase === 'results';
     this.root.dataset['phase'] = state.phase;
 
     if (inLobby) this.updateLobby(state, info);
     else {
       const timeLeft = state.phaseEndsAt > 0 ? state.phaseEndsAt - state.time : 0;
       const fighting = state.phase === 'battle' || state.phase === 'suddendeath';
-      const scores = state.teams
-        .map((t) => `<span class="score${state.phase === 'suddendeath' && !state.suddenDeathTeams.includes(t.index) ? ' out' : ''}" style="--team:${t.colour}">${esc(t.name)} ${t.kills}</span>`)
-        .join('');
-      const label = state.phase === 'suddendeath' ? '<span class="sd">SUDDEN DEATH</span>' : '';
+      // Scores in team colours; the leaders get the stone outline. Teams out of the sudden death fade.
+      const best = Math.max(0, ...state.teams.map((t) => t.kills));
+      const scoreHtml = (t: GameState['teams'][number]): string => {
+        const out = state.phase === 'suddendeath' && !state.suddenDeathTeams.includes(t.index) ? ' out' : '';
+        const lead = best > 0 && t.kills === best ? ' lead' : '';
+        return `<span class="score${out}${lead}" style="--team:${t.colour}" title="${esc(t.name)}"><i class="palina"></i><b>${t.kills}</b></span>`;
+      };
+      const half = Math.ceil(state.teams.length / 2);
+      const left = state.teams.slice(0, half).map(scoreHtml).join('');
+      const right = state.teams.slice(half).map(scoreHtml).join('');
       const late = fighting && timeLeft <= 60 ? ' late' : '';
-      this.set(this.topBar, `${label}<span class="timer${late}">${fighting ? clock(timeLeft) : ''}</span>${scores}${state.paused ? '<span class="paused">PAUSED</span>' : ''}`);
+      const label = state.phase === 'suddendeath' ? '<span class="tag sd">Sudden death</span>' : state.phase === 'countdown' ? '<span class="tag">Get ready</span>' : state.phase === 'results' ? '<span class="tag">Final</span>' : '';
+      const paused = state.paused ? '<span class="tag paused">Paused</span>' : '';
+      // The countdown shows the battle length to come; the results need no clock.
+      const shown = fighting ? clock(timeLeft) : state.phase === 'countdown' ? clock(MATCH.battleSec) : '';
+      const timer = shown ? `<span class="timer sign${late}">${shown}</span>` : '';
+      this.set(
+        this.topBar,
+        `<div class="scores">${left}</div><div class="clock">${timer}${label}${paused}</div><div class="scores">${right}</div>`,
+      );
       const feed = state.killFeed
         .filter((k) => state.time - k.at <= FEED_SEC)
-        .map((k) => `<div>${killFeedText(state, k.killerTeam, k.victimTeam, k.cause)}</div>`)
+        .map((k) => `<div class="feed-row">${killFeedText(state, k.killerTeam, k.victimTeam, k.cause)}</div>`)
         .join('');
       this.set(this.feed, feed);
       if (state.phase !== 'results') this.drawMinimap(state, layout);
@@ -180,36 +222,56 @@ export class SceneHud {
   }
 
   private updateLobby(state: GameState, info: HudInfo): void {
-    this.set(this.codeEl, esc(info.code ?? '....'));
+    this.set(this.codeEl, esc(info.code ?? '····'));
     this.set(
       this.urlEl,
       info.joinUrl
-        ? `${esc(info.joinUrl)}${info.urlLooksLocal ? '<br><b>Phones cannot open this address: run <code>npm run tunnel</code> and open the scene on the tunnel URL.</b>' : ''}`
+        ? `No camera? Open <b>${esc(info.joinUrl.replace(/^https?:\/\//, '').replace(/\?.*$/, ''))}</b> and type the code.${
+            info.urlLooksLocal ? '<span class="url-warn">Phones cannot reach this address. Run <code>npm run tunnel</code> and open the big screen on the tunnel URL.</span>' : ''
+          }`
         : esc(info.link),
     );
+    const size = state.teamSize;
     const teams = state.teams
       .map((t) => {
-        const crew = t.members
-          .map((id) => {
-            const p = state.players[id];
-            if (!p) return '';
-            const flags = [p.ready ? 'ready' : '', p.calibrated ? 'calibrated' : '', !p.connected ? 'offline' : '', p.virtual ? 'keys/bot' : ''].filter(Boolean).join(', ');
-            return `<li><b>${ROLE_ICON[p.role]}</b> ${esc(p.name)}${flags ? ` <small>(${flags})</small>` : ''} <button class="kick" data-action="kick" data-pid="${esc(p.id)}" title="Remove ${esc(p.name)}">✕</button></li>`;
-          })
-          .join('');
-        return `<div class="team" style="--team:${t.colour}"><h3>${esc(t.name)}</h3><ul>${crew}</ul></div>`;
+        // Bot crews are closed to phones: no open seats to advertise.
+        const bots = t.members.some((id) => id.startsWith('bot-'));
+        const seats = ROLES_IN_ORDER.slice(0, bots ? t.members.length : size).map((role, i) => {
+          const id = t.members[i];
+          const p = id ? state.players[id] : undefined;
+          if (!p || !id) return `<li class="seat open">${roleIcon(role)}<span class="who">Open seat</span><span class="role">${ROLE_LABEL[role]}</span></li>`;
+          const fresh = this.seen.has(id) ? '' : ' fresh';
+          this.seen.add(id);
+          const tags = [
+            p.virtual && !id.startsWith('bot-') ? '<em class="tag-mini">Keys</em>' : '',
+            !p.connected ? '<em class="tag-mini warn">Offline</em>' : '',
+            p.calibrated && !p.virtual ? '<em class="tag-mini">Controls on</em>' : '',
+            p.ready ? '<em class="tag-mini ok">Ready</em>' : '',
+          ].join('');
+          return `<li class="seat${fresh}">${roleIcon(p.role)}<span class="who">${esc(p.name)}</span>${tags}<span class="role">${ROLE_LABEL[p.role]}</span><button class="kick" data-action="kick" data-pid="${esc(id)}" title="Remove ${esc(p.name)}" aria-label="Remove ${esc(p.name)}">&times;</button></li>`;
+        });
+        // A crew beyond the team size (should not happen) still shows everyone.
+        for (const id of t.members.slice(size)) seats.push(`<li class="seat">${roleIcon('engineer')}<span class="who">${esc(state.players[id]?.name ?? id)}</span></li>`);
+        return `<div class="team" style="--team:${t.colour}"><i class="palina"></i><div class="team-body"><h3 class="display">${esc(t.name)}</h3><ul>${seats.join('')}</ul></div></div>`;
       })
       .join('');
-    const spectators = state.spectators.length ? `<p class="muted">Waiting: ${state.spectators.map((id) => esc(state.players[id]?.name ?? id)).join(', ')}</p>` : '';
-    this.set(this.roster, `<p class="muted">Teams of ${state.teamSize}</p>${teams || '<p class="muted">Scan the QR to join.</p>'}${spectators}`);
-    this.set(this.startEl, info.canStart.ok ? 'Press <b>Enter</b> or <b>Start</b>' : esc(info.canStart.reason ?? ''));
+    // Forget players who left so a rejoin animates again.
+    for (const id of this.seen) if (!state.players[id]) this.seen.delete(id);
+    const empty = `<div class="roster-empty"><p class="display">The canals are empty</p><p>Scan the QR to take a seat, or press <kbd>K</kbd> for a keyboard crew and <kbd>O</kbd> for a bot crew.</p></div>`;
+    const spectators = state.spectators.length ? `<p class="waiting">Waiting for a seat: ${state.spectators.map((id) => esc(state.players[id]?.name ?? id)).join(', ')}</p>` : '';
+    const count = Object.keys(state.players).length;
+    this.set(
+      this.roster,
+      `<div class="roster-head"><h2>Crews</h2><span>${count} ${count === 1 ? 'player' : 'players'}, teams of ${size}</span></div><div class="teams n${Math.min(6, state.teams.length)}">${teams || empty}</div>${spectators}`,
+    );
+    this.set(this.startEl, info.canStart.ok ? 'Everyone aboard? Press <kbd>Enter</kbd> or Start match.' : esc(info.canStart.reason ?? ''));
     const full = state.teams.length >= 6;
     this.set(
       this.buttonsEl,
-      `<button data-action="start" class="primary"${info.canStart.ok ? '' : ' disabled'}>Start</button>` +
-        `<button data-action="teamSize">Teams of ${state.teamSize === 3 ? '2' : '3'}</button>` +
-        `<button data-action="addBot"${full ? ' disabled' : ''}>Add bot team</button>` +
-        `<button data-action="addKeyboard"${full ? ' disabled' : ''}>Add keyboard crew</button>`,
+      `<button data-action="start" class="plate-btn"${info.canStart.ok ? '' : ' disabled'}>Start match</button>` +
+        `<button data-action="teamSize" class="ghost-btn">Teams of ${size === 3 ? '2' : '3'}</button>` +
+        `<button data-action="addBot" class="ghost-btn"${full ? ' disabled' : ''}>Add bot crew</button>` +
+        `<button data-action="addKeyboard" class="ghost-btn"${full ? ' disabled' : ''}>Add keyboard crew</button>`,
     );
   }
 
@@ -218,28 +280,37 @@ export class SceneHud {
     const boat = state.boats[i];
     if (!t || !boat) return '';
     const now = state.time;
-    const crew = t.members.map((id) => esc(state.players[id]?.name ?? '?') + (info.stale.has(id) ? ' ⚠' : '')).join(' · ');
+    const crew = t.members
+      .map((id) => {
+        const p = state.players[id];
+        const lost = info.stale.has(id) ? '<em class="lost" title="Phone not heard from">no signal</em>' : '';
+        return `<span>${p ? roleIcon(p.role) : ''}${esc(p?.name ?? '?')}${lost}</span>`;
+      })
+      .join('');
     const focus = info.focus === i ? ' focus' : '';
     const view = info.views[i];
     const weapon = WEAPONS[boat.weapon];
-    const ammo = Number.isFinite(boat.ammo) ? String(boat.ammo) : '∞';
-    const powers = boat.powers.map((p) => (p ? `<span class="power" data-power="${p}">${esc(POWERS[p].label)}</span>` : '<span class="power empty">empty</span>')).join('');
+    const powers = boat.powers
+      .map((p) => (p ? `<span class="power" data-power="${p}" title="${esc(POWERS[p].label)}">${powerIcon(p)}</span>` : '<span class="power empty"></span>'))
+      .join('');
     const water = Math.round(boat.water);
     // Bow against the view: the camera looks along the aim, so the arrow turns by (bow - aim); positive = bow to the left.
     const bowDeg = (wrapAngle(boat.pose.yaw - boat.aimYaw) * 180) / Math.PI;
     const timers: string[] = [];
-    if (boat.status === 'alive' && boat.protectedUntil > now) timers.push(`<span class="protect">PROTECTED ${(boat.protectedUntil - now).toFixed(1)}</span>`);
-    if (boat.status === 'alive' && boat.shieldUntil > now) timers.push(`<span class="shield">SHIELD ${Math.ceil(boat.shieldUntil - now)}</span>`);
-    if (boat.status === 'alive' && boat.boostUntil > now) timers.push(`<span class="boost">BOOST</span>`);
+    if (boat.status === 'alive' && boat.protectedUntil > now) timers.push(`<span class="pill protect">Protected ${(boat.protectedUntil - now).toFixed(1)}</span>`);
+    if (boat.status === 'alive' && boat.shieldUntil > now) timers.push(`<span class="pill shield">${powerIcon('shield')}Shield ${Math.ceil(boat.shieldUntil - now)}</span>`);
+    if (boat.status === 'alive' && boat.boostUntil > now) timers.push(`<span class="pill boost">${powerIcon('boost')}Boost</span>`);
     const flash = (info.shieldFlashUntil.get(i) ?? 0) > performance.now() ? '<div class="flash shield-flash"></div>' : '';
     let overlay = '';
     if (state.phase === 'results') overlay = '';
     else if (boat.status === 'sinking' || boat.status === 'respawning') {
       const killer = boat.killerTeam !== null ? state.teams[boat.killerTeam] : undefined;
-      const by = killer ? ` by <b style="color:${killer.colour}">${esc(killer.name)}</b>` : '';
-      overlay = `<div class="sunk"><div class="sunk-title">SUNK${by}</div><div class="sunk-count">${Math.max(0, Math.ceil(boat.respawnAt - now))}</div>${view?.killCam ? '<div class="muted">kill-cam</div>' : ''}</div>`;
+      const by = killer ? `<div class="sunk-by">by <b style="--team:${killer.colour}">${esc(killer.name)}</b></div>` : '';
+      const left = Math.max(0, Math.ceil(boat.respawnAt - now));
+      const cam = view?.killCam && killer ? `<div class="sunk-note">Watching ${esc(killer.name)}</div>` : '';
+      overlay = `<div class="sunk"><div class="sunk-title">Sunk</div>${by}<div class="sunk-count"><b>${left}</b><span>back in</span></div>${cam}</div>`;
     } else if (boat.status === 'out') {
-      overlay = '<div class="sunk"><div class="sunk-title">ELIMINATED</div><div class="muted">watch the sudden death</div></div>';
+      overlay = '<div class="sunk out"><div class="sunk-title">Out</div><div class="sunk-note">Watch the sudden death</div></div>';
     }
     const fighting = boat.status === 'alive' && state.phase !== 'results';
     // Corner boxes that would sit under the minimap move above it (bottom row) or below it (top row).
@@ -253,39 +324,50 @@ export class SceneHud {
       return '';
     };
     return `<div class="cell${focus}" style="left:${c.x}px;top:${c.y}px;width:${c.w}px;height:${c.h}px;--team:${t.colour}">
-      <div class="tl"${side(true, true)}><b>${esc(t.name)}</b> ${crew}</div>
-      <div class="tr"${side(true, false)}>K ${t.kills} · D ${t.deaths}</div>
-      ${fighting ? `<div class="crosshair ${boat.crosshair}"></div>` : ''}
-      ${fighting ? `<div class="bl"${side(false, true)}><span class="weapon" data-weapon="${boat.weapon}">${esc(weapon.label)}</span> <b class="ammo">${ammo}</b></div>` : ''}
-      ${fighting ? `<div class="br"${side(false, false)}>${powers}<div class="water" title="Hull water"><i style="width:${water}%"></i></div></div>` : ''}
-      ${fighting ? `<div class="bc"><div class="bow" style="transform:rotate(${(-bowDeg).toFixed(1)}deg)">▲</div>${timers.join('')}</div>` : ''}
+      <div class="tl"${side(true, true)}><i class="palina"></i><div><b class="team-name">${esc(t.name)}</b><div class="crew">${crew}</div></div></div>
+      <div class="tr"${side(true, false)}><span class="stat"><b>${t.kills}</b>sunk</span><span class="stat lost-stat"><b>${t.deaths}</b>lost</span></div>
+      ${fighting ? `<div class="crosshair ${boat.crosshair}"><i></i></div>` : ''}
+      ${fighting ? `<div class="bl"${side(false, true)}><span class="weapon-icon" data-weapon="${boat.weapon}">${weaponIcon(boat.weapon)}</span><span class="weapon-text"><span class="weapon">${esc(weapon.label)}</span>${ammoHtml(boat.ammo)}</span></div>` : ''}
+      ${fighting ? `<div class="br"${side(false, false)}><div class="powers">${powers}</div><div class="water${water >= 50 ? ' high' : ''}" title="Hull water">${dropIcon()}<span class="bar"><i style="width:${water}%"></i></span></div></div>` : ''}
+      ${fighting ? `<div class="bc"><div class="bow" style="transform:rotate(${(-bowDeg).toFixed(1)}deg)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 20 21l-8-4.5L4 21z"/></svg></div>${timers.join('')}</div>` : ''}
       ${flash}${overlay}
     </div>`;
   }
 
   private centreHtml(state: GameState): string {
-    if (state.phase === 'countdown') return `<div class="big">${Math.ceil(state.phaseEndsAt - state.time)}</div><div>Pilots and Gunners: CALIBRATE now</div>`;
+    if (state.phase === 'countdown') {
+      const n = Math.ceil(state.phaseEndsAt - state.time);
+      // The key changes every second, so the number element is new and its pop animation replays.
+      return `<div class="countdown"><div class="big display" data-n="${n}">${n}</div><p>Pilots and Gunners: hold your phone and tap <b>Calibrate</b></p></div>`;
+    }
     if (state.phase !== 'results' || !state.results) return '';
     const r = state.results;
-    const rows = r.ranking
+    const pennants = r.ranking
       .map((ti, rank) => {
         const t = state.teams[ti];
-        return t ? `<li style="--team:${t.colour}">${esc(t.name)}: ${t.kills} kills, ${t.deaths} deaths${rank === 0 ? ' 🏆' : ''}</li>` : '';
+        return t
+          ? `<li class="pennant${rank === 0 ? ' first' : ''}" style="--team:${t.colour};--i:${rank}"><span class="rank display">${rank + 1}</span><span class="pn-name">${esc(t.name)}</span><span class="pn-stat"><b>${t.kills}</b> sunk</span><span class="pn-stat"><b>${t.deaths}</b> lost</span></li>`
+          : '';
       })
       .join('');
-    const extras: string[] = [];
+    const awards: string[] = [];
     if (r.topGunner) {
       const p = state.players[r.topGunner];
-      if (p) extras.push(`Top Gunner: <b>${esc(p.name)}</b> (${p.kills - p.ramKills} kills)`);
+      if (p) awards.push(`<li>${roleIcon('gunner')}<span>Top Gunner</span><b>${esc(p.name)}</b><em>${p.kills - p.ramKills} sunk</em></li>`);
     }
     if (r.bestRam) {
       const p = state.players[r.bestRam];
-      if (p) extras.push(`Best ram: <b>${esc(p.name)}</b>`);
+      if (p) awards.push(`<li>${powerIcon('boost')}<span>Best ram</span><b>${esc(p.name)}</b></li>`);
     }
-    if (r.suddenDeath) extras.push('Decided in sudden death');
-    return `<div class="results"><h2>${esc(state.teams[r.winner]?.name ?? '')} wins</h2><ol>${rows}</ol>${extras.length ? `<p>${extras.join(' · ')}</p>` : ''}
-      <div class="host-buttons"><button data-action="rematch" class="primary">Rematch</button><button data-action="newLobby">New lobby</button></div>
-      <p class="muted">Enter: rematch · Esc: new lobby</p></div>`;
+    const winner = state.teams[r.winner];
+    const sd = r.suddenDeath ? '<p class="results-note">Decided in sudden death</p>' : '';
+    return `<div class="results" style="--team:${winner?.colour ?? '#fff'}">
+      <h2 class="display">${esc(winner?.name ?? '')} wins the regatta</h2>${sd}
+      <div class="rod"></div>
+      <ol class="pennants">${pennants}</ol>
+      ${awards.length ? `<ul class="awards">${awards.join('')}</ul>` : ''}
+      <div class="host-buttons"><button data-action="rematch" class="plate-btn">Rematch</button><button data-action="newLobby" class="ghost-btn">New lobby</button></div>
+      <p class="keys"><kbd>Enter</kbd> rematch with the same crews <kbd>Esc</kbd> new lobby</p></div>`;
   }
 
   // ---------------------------------------------------------------- minimap
@@ -318,9 +400,9 @@ export class SceneHud {
       layer.height = h;
       const lg = layer.getContext('2d');
       if (lg) {
-        lg.fillStyle = '#163846';
+        lg.fillStyle = '#123b3c';
         lg.fillRect(0, 0, w, h);
-        lg.fillStyle = '#c9b48f';
+        lg.fillStyle = '#e6dcc4';
         for (const wall of m.walls) lg.fillRect(px(wall.x - wall.w / 2), pz(wall.z - wall.d / 2), (wall.w / m.worldW) * w + 0.5, (wall.d / m.worldD) * h + 0.5);
       }
       this.wallsLayer = layer;
@@ -329,7 +411,7 @@ export class SceneHud {
     const dot = Math.max(2, w / 110);
     for (const c of state.crates) {
       if (!c.active) continue;
-      g.fillStyle = c.category === 'weapon' ? '#ff4a3a' : '#3a8fff';
+      g.fillStyle = c.category === 'weapon' ? '#ff5a46' : '#6fb8ff';
       g.fillRect(px(c.x) - dot / 2, pz(c.z) - dot / 2, dot, dot);
     }
     for (const b of state.boats) {

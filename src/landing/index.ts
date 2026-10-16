@@ -1,8 +1,9 @@
 /**
- * Landing page: two big buttons, SCENE and PLAYER.
+ * Landing page: two big choices, PLAYER and SCENE (shown as "Big screen").
  * On a phone PLAYER is highlighted; on a desktop SCENE is.
  * Owned by Track A (netcode and phones).
  */
+import { ferroMark } from '../ui/icons.ts';
 
 export function isProbablyPhone(): boolean {
   const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
@@ -13,19 +14,29 @@ export function isProbablyPhone(): boolean {
 
 export function renderLanding(root: HTMLElement): void {
   const phone = isProbablyPhone();
+  const player = `
+    <button class="choice ${phone ? 'plate-btn' : 'ghost-btn'}" id="btn-player" type="button">
+      <span class="choice-title">Player</span>
+      <span class="choice-sub">Use this phone as your controller. Scan the QR on the big screen or type its code.</span>
+    </button>`;
+  const scene = `
+    <button class="choice ${phone ? 'ghost-btn' : 'plate-btn'}" id="btn-scene" type="button">
+      <span class="choice-title">Big screen</span>
+      <span class="choice-sub">Run the game on the computer connected to the TV or projector. It opens a room and shows the QR.</span>
+    </button>`;
+  // Mooring poles in the six team colours, standing in the lagoon on both sides of the title.
+  const pole = (team: number, h: number): string => `<i class="pole" style="--team:var(--team-${team});--h:${h}"></i>`;
   root.innerHTML = `
     <main class="landing">
-      <h1>Gondola Royale</h1>
-      <p>Party deathmatch in Venice. The big screen shows the game, your phone is the controller.</p>
-      <button class="big-button ${phone ? 'primary' : ''}" id="btn-player" type="button">
-        PLAYER
-        <small>Your phone is the controller. Scan the QR on the big screen or type the room code.</small>
-      </button>
-      <button class="big-button ${phone ? '' : 'primary'}" id="btn-scene" type="button">
-        SCENE
-        <small>Open on the PC wired to the projector. Creates a room and shows the QR.</small>
-      </button>
-      <p class="muted">No install, no account. Works in Safari on iOS 16+ and Chrome on Android.</p>
+      <div class="paline paline-left" aria-hidden="true">${pole(0, 0.62)}${pole(1, 0.48)}${pole(2, 0.55)}</div>
+      <div class="paline paline-right" aria-hidden="true">${pole(3, 0.52)}${pole(4, 0.64)}${pole(5, 0.46)}</div>
+      <header class="brand">
+        ${ferroMark()}
+        <h1 class="display">Gondola Royale</h1>
+        <p>Crew an armed gondola with your friends. One hit sinks a boat, you are back in five seconds, and after five minutes the crew with the most sinkings wins.</p>
+      </header>
+      <div class="choices">${phone ? player + scene : scene + player}</div>
+      <p class="foot">No app and no account. Phones need Safari on iOS 16 or later, or Chrome on Android.</p>
     </main>
   `;
   root.querySelector<HTMLButtonElement>('#btn-player')?.addEventListener('click', () => {

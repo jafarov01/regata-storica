@@ -1,38 +1,117 @@
-/* src/phone/phone.css: join and lobby screens around the pads (pads.css). Track A owns it. */
+/* src/phone/phone.css: join and lobby screens around the pads (pads.css). Track A owns it.
+   The phone is a controller first: big targets, the team colour everywhere, the role in
+   large type, and stone sign plates (base.css) for what must be read in one glance. */
+
+/* ================================================================ join */
+
 .phone-page {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 18px;
   min-height: 100dvh;
-  padding: 24px;
+  padding: 32px 20px;
   text-align: center;
+  font-size: 18px;
+  background:
+    radial-gradient(90% 40% at 50% 0%, rgba(242, 181, 68, 0.16), transparent 70%),
+    linear-gradient(180deg, var(--laguna) 0%, var(--laguna-deep) 100%);
 }
-.code-input,
-.name-input {
-  width: min(80vw, 320px);
-  padding: 14px 16px;
-  border-radius: var(--radius);
-  border: 2px solid var(--fg-dim);
-  background: var(--bg-2);
-  color: var(--fg);
-  font: 700 28px var(--font);
+.join-page {
+  justify-content: center;
+}
+.join-page .ferro {
+  width: 34px;
+  height: auto;
+  color: var(--pietra);
+}
+.join-page h1 {
+  font-size: 44px;
+  line-height: 1;
+  color: var(--pietra);
+}
+.join-page .muted {
+  max-width: 22em;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.3;
+}
+.code-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(86vw, 320px);
+  padding: 10px 12px 6px;
+  border-radius: 3px;
+  font-size: 16px;
+}
+.code-field span {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.65;
+}
+.code-input {
+  width: 100%;
+  padding: 0 0 0 0.25em;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 800 56px / 1.1 var(--font);
   text-align: center;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.25em;
   text-transform: uppercase;
 }
-.name-input {
-  letter-spacing: 0.02em;
-  text-transform: none;
+.code-input::placeholder {
+  color: rgba(0, 0, 0, 0.22);
+}
+.code-input:focus {
+  outline: none;
+}
+.code-field:focus-within {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+.join-btn {
+  width: min(86vw, 320px);
+  font-size: 24px;
+}
+.join-page .ghost-btn {
+  width: min(86vw, 320px);
+  font-size: 18px;
+}
+.join-msg {
+  min-height: 1.4em;
+  max-width: min(90vw, 420px);
+  margin: 0;
+  color: var(--fg);
+  font-size: 17px;
 }
 #scanner {
-  width: min(80vw, 320px);
-  border-radius: var(--radius);
+  width: min(86vw, 320px);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 3px var(--pietra),
+    0 0 0 5px var(--ink);
 }
-/* The page background is the team colour (SPEC section 3), darkened just enough for white text. */
+
+/* ================================================================ room: frame */
+
+/* The page background is the team colour (SPEC section 3), deepened so white text reads on it. */
 .phone-root {
-  --team: #333;
-  background: color-mix(in srgb, var(--team) 72%, #000);
+  --team: #3a4f4f;
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--team) 82%, #000) 0%, transparent 70%),
+    linear-gradient(170deg, color-mix(in srgb, var(--team) 70%, #000), color-mix(in srgb, var(--team) 38%, #000));
+}
+.swatch {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.95em;
+  margin-right: 0.35em;
+  border-radius: 2px;
+  vertical-align: -0.12em;
+  background: repeating-linear-gradient(-35deg, var(--team) 0 0.3em, var(--pietra) 0.3em 0.6em);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 .phone-bar {
   position: absolute;
@@ -41,13 +120,36 @@
   right: 0;
   z-index: 3;
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  padding: 6px 12px;
-  font-size: 0.55em;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 15px;
+  font-weight: 600;
   pointer-events: none;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.32);
 }
+.pb-name {
+  font-weight: 800;
+}
+.pb-seat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  margin-left: auto;
+}
+.pb-seat .icon {
+  margin-left: 0.2em;
+}
+.pb-status {
+  color: #ffd2cb;
+}
+.pb-status:empty {
+  display: none;
+}
+
+/* ================================================================ room: lobby */
+
 .phone-lobby {
   position: absolute;
   inset: 0;
@@ -56,55 +158,223 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 48px 16px 16px;
-  background: color-mix(in srgb, var(--team) 72%, #000);
+  gap: 20px;
+  padding: calc(env(safe-area-inset-top) + 44px) 18px calc(env(safe-area-inset-bottom) + 18px);
+  overflow-y: auto;
+  font-size: 18px;
+  touch-action: pan-y;
 }
-/* Team and role in large type at the top of the lobby. */
-.lobby-seat {
+.lobby-card,
+.lobby-controls {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 14px;
+  width: min(100%, 420px);
+}
+/* Team and role in large type, the role's icon on a stone disc. */
+.lobby-seat {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.seat-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: var(--pietra);
+  color: var(--ink);
+  box-shadow:
+    inset 0 0 0 4px var(--pietra),
+    inset 0 0 0 6px var(--ink),
+    0 6px 0 rgba(0, 0, 0, 0.25);
+}
+.seat-icon:empty {
+  display: none;
+}
+.seat-icon .icon {
+  width: 46px;
+  height: 46px;
+}
+.seat-text {
+  display: flex;
+  flex-direction: column;
   line-height: 1;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
-.lobby-seat span {
-  font-size: 0.7em;
-  letter-spacing: 0.2em;
-  opacity: 0.85;
+.seat-text span {
+  font-size: 30px;
+  color: color-mix(in srgb, var(--team) 35%, #fff);
 }
-.lobby-seat b {
-  font: 900 clamp(40px, 13vmin, 96px) var(--font);
-  letter-spacing: 0.06em;
+.seat-text b {
+  font: 800 clamp(54px, 17vw, 84px) / 0.95 var(--font);
+  letter-spacing: 0.01em;
 }
-.join-msg {
-  min-height: 1.4em;
-  max-width: min(90vw, 420px);
-  color: var(--fg);
+.seat-job {
+  margin: 0;
+  max-width: 24em;
+  font-size: 16px;
+  line-height: 1.3;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+.crew-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.crew-list:empty {
+  display: none;
+}
+.crew-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.24);
+  font-size: 17px;
+  font-weight: 700;
+}
+.crew-list li.me {
+  background: rgba(239, 232, 216, 0.18);
+}
+.crew-list li small {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+.crew-list li em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+.crew-list li em.ok {
+  opacity: 1;
+  padding: 1px 8px;
+  border-radius: 3px;
+  background: var(--ok);
+  color: #04210f;
+}
+.crew-list li.open {
+  background: none;
+  outline: 1px dashed rgba(255, 255, 255, 0.3);
+  outline-offset: -1px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+}
+.name-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+}
+.name-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font: 700 24px var(--font);
+  text-align: center;
+}
+.name-input:focus {
+  outline: none;
+  border-color: var(--pietra);
 }
 .phone-lobby .row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: center;
 }
 .chip {
-  padding: 10px 16px;
+  min-height: 44px;
+  padding: 8px 16px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  font-size: 0.6em;
+  background: rgba(0, 0, 0, 0.28);
+  border: 2px solid rgba(255, 255, 255, 0.32);
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.chip:active {
+  background: rgba(0, 0, 0, 0.45);
 }
 .chip.on {
   background: var(--ok);
   border-color: var(--ok);
-  color: #000;
+  color: #04210f;
 }
-.phone-lobby .muted {
-  font-size: 0.5em;
-  font-weight: 400;
-  max-width: 90vw;
+.enable-btn {
+  width: 100%;
+  font-size: 26px;
+  padding: 14px 18px 16px;
 }
+.enable-btn small {
+  font-size: 14px;
+}
+.hint {
+  min-height: 1.3em;
+  margin: 0;
+  font-size: 15px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+/* Landscape phones are short: seat on the left, controls on the right. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .phone-lobby {
+    flex-direction: row;
+    align-items: center;
+    gap: 28px;
+    padding-left: calc(env(safe-area-inset-left) + 24px);
+    padding-right: calc(env(safe-area-inset-right) + 24px);
+  }
+  .lobby-card,
+  .lobby-controls {
+    flex: 1;
+    gap: 10px;
+  }
+  .seat-text b {
+    font-size: clamp(44px, 11vh, 64px);
+  }
+  .seat-icon {
+    width: 62px;
+    height: 62px;
+  }
+  .seat-icon .icon {
+    width: 36px;
+    height: 36px;
+  }
+  .crew-list li {
+    min-height: 32px;
+  }
+  .enable-btn {
+    font-size: 22px;
+    padding: 10px 16px 12px;
+  }
+}
+
+/* ================================================================ room: match */
+
 .pads-mount {
   position: absolute;
   inset: 0;
@@ -115,27 +385,30 @@
   right: 0;
   bottom: env(safe-area-inset-bottom);
   z-index: 3;
-  padding: 6px 12px;
-  font-size: 0.5em;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 15px;
+  font-weight: 600;
   pointer-events: none;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.36);
+}
+.phone-hud b {
+  font-weight: 800;
+  font-size: 1.12em;
+}
+.hud-prot {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--pietra);
+  color: var(--ink);
+  font-weight: 800;
 }
 .phone-root .pads {
   z-index: 1;
-}
-.phone-root .zone {
-  font-size: 1.1em;
-  letter-spacing: 0.06em;
-}
-.pads-pilot .zone-gas {
-  background: rgba(79, 196, 122, 0.18);
-}
-.pads-pilot .zone-brake {
-  background: rgba(224, 74, 58, 0.18);
-}
-.pads-gunner .zone-fire {
-  background: rgba(242, 181, 68, 0.16);
 }
 /* Role graphic over the pads: never takes touches. */
 .role-view {
@@ -149,137 +422,201 @@
   justify-content: center;
   gap: 2vh;
 }
-/* Role name in large type across the top, between CALIBRATE (left) and the weapon label (right). */
+/* The role's name, very large and faint, behind the graphic. */
 .role-name {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 7vh);
+  top: calc(env(safe-area-inset-top) + 34px);
   left: 0;
   right: 0;
   text-align: center;
-  font: 900 clamp(26px, 10vmin, 72px) var(--font);
-  letter-spacing: 0.12em;
-  opacity: 0.4;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(30px, 11vmin, 76px);
+  line-height: 1;
+  opacity: 0.22;
 }
 /* Gunner: the compass sits in the middle of the FIRE pad (right two thirds), FIRE drops below it. */
 .role-view[data-role='gunner'] {
   padding-left: 33.333%;
 }
-.pads-gunner .zone-fire {
-  align-items: flex-end;
-  padding-bottom: calc(env(safe-area-inset-bottom) + 9vh);
-}
 .role-tip {
-  min-height: 1.2em;
-  font-size: 0.7em;
-  text-shadow: 0 1px 4px #000;
+  min-height: 1.3em;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: clamp(16px, 5vmin, 26px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+.role-tip:not(:empty) {
+  background: rgba(0, 0, 0, 0.45);
 }
 .wheel,
 .compass,
 .meter {
   display: none;
 }
-[data-role='pilot'] .wheel,
-[data-role='gunner'] .compass,
-[data-role='engineer'] .meter {
+/* The role graphic picks its element from the role. */
+.role-view[data-role='pilot'] .wheel,
+.role-view[data-role='gunner'] .compass,
+.role-view[data-role='engineer'] .meter {
   display: block;
 }
+/* Pilot: a ship's wheel in stone that turns with the tilt. */
 .wheel {
-  position: relative;
-  width: 42vmin;
-  height: 42vmin;
-  border: 2.4vmin solid #f4efe4;
-  border-radius: 50%;
-  box-shadow: 0 0 0 0.6vmin rgba(0, 0, 0, 0.4);
+  width: 46vmin;
+  height: 46vmin;
+  color: var(--pietra);
+  filter: drop-shadow(0 0.8vmin 0 rgba(0, 0, 0, 0.3));
   transition: transform 40ms linear;
 }
-.wheel-spoke {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2vmin;
-  margin-left: -1vmin;
-  background: #f4efe4;
+.wheel .wheel-hub {
+  fill: var(--ink);
 }
-.wheel-spoke-2 {
-  transform: rotate(90deg);
+.wheel .wheel-top {
+  fill: var(--team);
 }
-.wheel-hub {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  width: 4vmin;
-  height: 4vmin;
-  margin: -1vmin 0 0 -2vmin;
-  border-radius: 50%;
-  background: var(--accent);
-}
+/* Gunner: a compass with the bow at the top; the needle is the aim. */
 .compass {
   position: relative;
-  width: 36vmin;
-  height: 36vmin;
-  border: 1.2vmin solid rgba(244, 239, 228, 0.85);
+  width: 40vmin;
+  height: 40vmin;
   border-radius: 50%;
+}
+.compass svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.compass-face {
+  fill: rgba(0, 0, 0, 0.32);
+  stroke: var(--pietra);
+  stroke-width: 6;
+}
+.compass-ticks {
+  fill: var(--pietra);
+  opacity: 0.8;
+}
+.compass-bow {
+  fill: var(--pietra);
 }
 .compass .needle {
   position: absolute;
   left: 50%;
-  top: 8%;
-  width: 2vmin;
-  height: 42%;
-  margin-left: -1vmin;
-  background: var(--accent);
-  border-radius: 1vmin;
+  top: 12%;
+  width: 3.2vmin;
+  height: 38%;
+  margin-left: -1.6vmin;
+  background: var(--pietra);
+  clip-path: polygon(50% 0, 100% 22%, 64% 22%, 64% 100%, 36% 100%, 36% 22%, 0 22%);
   transform-origin: 50% 100%;
+}
+.compass::after {
+  /* The pivot. */
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5vmin;
+  height: 5vmin;
+  margin: -2.5vmin 0 0 -2.5vmin;
+  border-radius: 50%;
+  background: var(--pietra);
+  box-shadow: inset 0 0 0 1.2vmin var(--ink);
 }
 .compass .bow-mark {
   position: absolute;
-  top: -1.4em;
+  top: -1.5em;
   width: 100%;
   text-align: center;
-  font-size: 0.45em;
+  font-size: 0.42em;
+  font-weight: 700;
+  opacity: 0.8;
 }
+.compass.on-target .compass-face {
+  stroke: var(--danger);
+  fill: rgba(255, 90, 70, 0.22);
+}
+.compass.on-target .needle {
+  background: var(--danger);
+}
+.compass.locked {
+  box-shadow:
+    0 0 0 1.4vmin rgba(0, 0, 0, 0.3),
+    0 0 0 2.2vmin var(--danger);
+}
+/* Our shot landed: the ring pulses once. */
+.compass.landed {
+  animation: compass-landed 380ms ease-out;
+}
+@keyframes compass-landed {
+  from {
+    box-shadow:
+      0 0 0 0 var(--pietra),
+      0 0 4vmin var(--pietra);
+  }
+  to {
+    box-shadow:
+      0 0 0 5vmin rgba(239, 232, 216, 0),
+      0 0 0 transparent;
+  }
+}
+/* Engineer: a glass tank showing the hull water. */
 .meter {
   position: relative;
-  width: 14vmin;
-  height: 40vmin;
-  border: 1vmin solid #f4efe4;
-  border-radius: 2vmin;
-  overflow: hidden;
+  width: 15vmin;
+  height: 42vmin;
+  border-radius: 2.4vmin;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow:
+    inset 0 0 0 0.8vmin var(--pietra),
+    0 0.8vmin 0 rgba(0, 0, 0, 0.25);
+  overflow: visible;
 }
 .meter-fill {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 0.8vmin;
+  right: 0.8vmin;
+  bottom: 0.8vmin;
   height: 0;
-  background: #3a8fe0;
+  max-height: calc(100% - 1.6vmin);
+  border-radius: 0 0 1.6vmin 1.6vmin;
+  background: linear-gradient(180deg, #b9ecf2, var(--acqua) 30%, #3aa6b5);
+  transition: height 120ms linear;
 }
 .meter span {
   position: absolute;
-  bottom: -1.6em;
-  width: 100%;
-  text-align: center;
-  font-size: 0.4em;
+  bottom: -1.7em;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.42em;
+  font-weight: 700;
+}
+.meter span .icon {
+  color: var(--acqua);
 }
 .phone-alert {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 12vh);
+  bottom: calc(env(safe-area-inset-bottom) + 42px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 4;
   max-width: 86vw;
   padding: 8px 16px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.75);
-  font-size: 0.55em;
-  text-align: center;
+  border-radius: 6px;
+  border-left: 5px solid var(--accent);
+  background: rgba(0, 0, 0, 0.82);
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
   pointer-events: none;
 }
 /* Small pad buttons: below the top bar, never on top of each other. */
 .phone-root .zone.small {
-  top: calc(env(safe-area-inset-top) + 8vh);
-  background: rgba(0, 0, 0, 0.35);
+  top: calc(env(safe-area-inset-top) + 40px);
 }
 .phone-root .zone.power-a {
   top: auto;
@@ -291,7 +628,63 @@
   bottom: calc(env(safe-area-inset-bottom) + 8vh);
   width: 24vw;
 }
-/* Full-screen states over the pads: sunk, results, resume, spectate. */
+.back-lobby {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 40px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  font-size: 15px;
+  min-height: 36px;
+}
+/* Gunner's weapon: icon, name and ammo pips on a stone plate, top right. */
+.weapon {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 40px);
+  right: 4vw;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 8px;
+  border-radius: 4px;
+  background: var(--pietra);
+  color: var(--ink);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+}
+.weapon .icon {
+  width: 34px;
+  height: 34px;
+}
+.weapon > span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+.weapon b {
+  font-size: 18px;
+  font-weight: 800;
+}
+.weapon .pips {
+  display: flex;
+  gap: 4px;
+  margin-top: 3px;
+}
+.weapon .pips i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.weapon .ammo {
+  font-size: 18px;
+  font-weight: 800;
+}
+.weapon:empty {
+  display: none;
+}
+
+/* ================================================================ room: full-screen states */
+
 .phone-overlay {
   position: absolute;
   inset: 0;
@@ -300,89 +693,137 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2vh;
-  padding: 16px;
+  gap: 2.4vh;
+  padding: 20px;
   text-align: center;
-  background: color-mix(in srgb, var(--team) 35%, rgba(0, 0, 0, 0.88));
+  font-size: 18px;
+  background: color-mix(in srgb, var(--team) 30%, rgba(4, 16, 17, 0.92));
 }
 .phone-overlay .big {
-  font: 900 clamp(40px, 14vmin, 120px) var(--font);
-  letter-spacing: 0.06em;
-}
-.phone-overlay .count {
-  font-size: 1.4em;
-  color: var(--accent);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(44px, 14vmin, 110px);
+  line-height: 1;
 }
 .phone-overlay .small {
-  font-size: 0.5em;
-  opacity: 0.7;
+  font-size: 15px;
+  opacity: 0.75;
 }
 .phone-overlay.sunk {
-  background: rgba(10, 30, 45, 0.92);
+  background: linear-gradient(180deg, rgba(6, 40, 52, 0.88), rgba(3, 18, 26, 0.96));
   pointer-events: none;
 }
 .phone-overlay.sunk .big {
-  color: #7fc4ff;
+  color: var(--acqua);
+}
+.sunk-by {
+  font-size: 22px;
+  font-weight: 700;
+}
+.phone-overlay .count {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--fg-dim);
+}
+.phone-overlay .count.ring {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 4px solid var(--pietra);
+}
+.phone-overlay .count b {
+  font-size: 44px;
+  line-height: 1;
+  color: #fff;
+}
+.phone-overlay .count.ring span {
+  font-size: 13px;
 }
 .phone-overlay.results,
 .phone-overlay.spectate {
   pointer-events: none;
 }
-.phone-overlay.spectate {
-  font-size: 0.6em;
+/* Results: the team's pennant, like the regatta's prize banners. */
+.result-pennant {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 26px 26px 54px;
+  min-width: min(80vw, 380px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--team) 80%, #fff), var(--team) 35%, color-mix(in srgb, var(--team) 65%, #000));
+  clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
-.back-lobby {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 8vh);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  font-size: 0.5em;
+.results-team {
+  font-size: 20px;
+  font-weight: 700;
 }
-.weapon {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 8vh);
-  right: 4vw;
-  padding: 6px 14px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.45);
-  font-size: 0.7em;
-  letter-spacing: 0.06em;
+.phone-overlay.results:not(.won) .result-pennant {
+  background: rgba(0, 0, 0, 0.35);
+  clip-path: none;
+  border-radius: 8px;
+  padding: 22px 26px;
 }
-.weapon:empty {
-  display: none;
+@media (prefers-reduced-motion: no-preference) {
+  .phone-overlay.results.won .result-pennant {
+    animation: pennant-in 700ms var(--ease-out);
+    transform-origin: top;
+  }
 }
-.compass.on-target {
-  border-color: var(--danger);
-  box-shadow: 0 0 3vmin var(--danger);
-}
-.compass.locked {
-  outline: 1vmin solid var(--accent);
-  outline-offset: 1.5vmin;
-}
-/* Our shot landed: the ring pulses gold once. */
-.compass.landed {
-  animation: compass-landed 380ms ease-out;
-}
-@keyframes compass-landed {
+@keyframes pennant-in {
   from {
-    box-shadow: 0 0 0 0 var(--accent), 0 0 4vmin var(--accent);
+    transform: scaleY(0.3);
+    opacity: 0;
   }
-  to {
-    box-shadow: 0 0 0 4vmin rgba(242, 181, 68, 0), 0 0 0 transparent;
-  }
+}
+.phone-overlay.spectate {
+  font-size: 18px;
+}
+.phone-overlay.spectate > div:last-child,
+.resume-seat {
+  max-width: 24em;
+  line-height: 1.35;
+}
+.resume-seat {
+  font-size: 22px;
+  font-weight: 700;
+}
+.phone-overlay.resume .enable-btn {
+  width: min(90vw, 420px);
 }
 /* Blocking errors: wrong code, full room, kicked, another tab. Takes taps (its buttons). */
-.phone-overlay.blocked .big {
-  letter-spacing: 0.2em;
+.code-plate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 26px 6px;
+  border-radius: 3px;
+}
+.code-plate span {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.65;
+}
+.code-plate b {
+  font-size: 54px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.22em;
+  margin-right: -0.22em;
 }
 .blocked-text {
-  max-width: min(90vw, 520px);
-  font-size: 0.7em;
+  max-width: min(90vw, 460px);
+  font-size: 19px;
+  line-height: 1.35;
 }
-.phone-overlay.blocked .chip {
-  color: inherit;
-  text-decoration: none;
+.phone-overlay.blocked .plate-btn {
+  min-width: min(80vw, 300px);
+  font-size: 22px;
 }
 /* Fire and hit cue on iOS (no Vibration API): a full-screen layer over everything, never takes touches. */
 .phone-flash {
@@ -391,22 +832,43 @@
   z-index: 20;
   pointer-events: none;
 }
+.rotate-overlay > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 800;
+}
 .rotate-overlay small {
   display: block;
-  margin-top: 0.6em;
-  font-size: 0.55em;
-  font-weight: 400;
+  margin-top: -8px;
+  font-size: 16px;
+  font-weight: 500;
   opacity: 0.75;
 }
-.rotate-overlay > div {
-  text-align: center;
-}
-.phone-root .zone.empty {
-  opacity: 0.45;
-}
-/* The role graphic picks its element from the role. */
-.role-view[data-role='pilot'] .wheel,
-.role-view[data-role='gunner'] .compass,
-.role-view[data-role='engineer'] .meter {
+/* A phone outline that turns to landscape. */
+.rotate-phone {
   display: block;
+  width: 46px;
+  height: 80px;
+  border-radius: 8px;
+  border: 4px solid var(--pietra);
+  box-shadow: inset 0 -8px 0 -4px var(--pietra);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rotate-phone {
+    animation: rotate-hint 2.2s var(--ease-out) infinite;
+  }
+}
+@keyframes rotate-hint {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+  55%,
+  100% {
+    transform: rotate(-90deg);
+  }
 }

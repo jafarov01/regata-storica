@@ -1,9 +1,11 @@
-/* src/scene/scene.css: big-screen chrome over the WebGL canvas. Track B owns it. */
+/* src/scene/scene.css: big-screen chrome over the WebGL canvas. Track B owns it.
+   Reads from across a room: condensed type at 26 px and up on a 1080p projector, stone sign
+   plates for what everyone checks (code, timer), team colours for everything team-owned. */
 .scene {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #05101a;
+  background: var(--laguna-deep);
 }
 .scene canvas.gl {
   position: absolute;
@@ -17,320 +19,735 @@
   inset: 0;
   pointer-events: none;
   font-size: clamp(14px, 1.4vw, 26px);
+  font-variant-numeric: tabular-nums;
 }
+.scene .hud button {
+  pointer-events: auto;
+  font-size: 0.9em;
+}
+
+/* ================================================================ lobby */
+
 .lobby-panel {
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4vw;
-  align-items: center;
-  padding: 4vw 6vw;
-  background: rgba(5, 16, 26, 0.86);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
+  grid-template-rows: auto 1fr;
+  column-gap: 4vw;
+  row-gap: 2.5vh;
+  padding: 4vh 4.5vw 3.5vh;
+  /* The live scene stays faintly visible behind, darkest under the QR. */
+  background:
+    radial-gradient(70% 60% at 85% 0%, rgba(242, 181, 68, 0.12), transparent 70%),
+    linear-gradient(90deg, rgba(6, 22, 23, 0.97) 0%, rgba(10, 34, 35, 0.93) 45%, rgba(10, 34, 35, 0.86) 100%);
+  pointer-events: auto;
 }
-.lobby-panel[hidden] {
-  display: none;
+.lobby-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+.lobby-head .ferro {
+  width: 1.4em;
+  height: auto;
+  color: var(--pietra);
+}
+.lobby-head h1 {
+  font-size: 2.3em;
+  line-height: 1;
+  color: var(--pietra);
 }
 .lobby-panel .join {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  align-items: stretch;
+  gap: 1.6vh;
+  min-height: 0;
+  align-self: start;
+}
+.join-step {
+  margin: 0;
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--fg);
+}
+.qr-plate {
+  padding: 1.1em;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1.2em 2.4em rgba(0, 0, 0, 0.45);
+  aspect-ratio: 1;
+  max-height: 48vh;
+  display: grid;
+  place-items: center;
 }
 .lobby-panel .qr {
-  width: min(32vw, 52vh) !important;
-  height: auto !important;
-  border-radius: 12px;
-  background: #fff;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
-.lobby-panel .code {
-  font: 800 clamp(48px, 7vw, 120px) var(--font);
-  letter-spacing: 0.18em;
-  color: var(--accent);
+/* The room code as a street sign: what people read from the back of the room. */
+.code-sign {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5em 0.6em 0.4em;
+  border-radius: 3px;
+  font-size: 1em;
+}
+.code-sign span {
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+.code-sign .code {
+  font: 800 clamp(48px, 6.6vw, 128px) / 1 var(--font);
+  letter-spacing: 0.22em;
+  margin-right: -0.22em; /* the tracking after the last letter */
 }
 .lobby-panel .url {
-  max-width: 34vw;
-  text-align: center;
   color: var(--fg-dim);
-  word-break: break-all;
+  font-size: 0.78em;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
-.lobby-panel h1 {
-  font-size: clamp(36px, 4vw, 72px);
-  color: var(--accent);
-  margin-bottom: 16px;
+.lobby-panel .url b {
+  color: var(--fg);
+}
+.url-warn {
+  display: block;
+  margin-top: 0.6em;
+  padding: 0.5em 0.7em;
+  border-left: 4px solid var(--danger);
+  background: rgba(255, 90, 70, 0.12);
+  color: var(--fg);
+}
+.lobby-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 2vh;
 }
 .roster {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
+  flex-direction: column;
+  gap: 1.4vh;
 }
-.roster > p {
-  width: 100%;
-  margin: 0;
+.roster-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8em;
 }
+.roster-head h2 {
+  font-size: 1.3em;
+  font-weight: 800;
+}
+.roster-head span {
+  color: var(--fg-dim);
+  font-size: 0.85em;
+}
+.teams {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.2em 1.4em;
+  align-content: start;
+}
+.teams.n1,
+.teams.n2,
+.teams.n4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* A crew: its mooring pole on the left, the name in the display face, one row per seat. */
 .roster .team {
-  min-width: 220px;
-  padding: 10px 14px;
-  border-left: 8px solid var(--team);
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 0.55em 1fr;
+  gap: 0.7em;
+}
+.roster .team > .palina {
+  border-radius: 0.3em 0.3em 0 0;
+  min-height: 100%;
+  background: repeating-linear-gradient(-30deg, var(--team) 0 0.7em, var(--pietra) 0.7em 1.4em);
 }
 .roster .team h3 {
-  color: var(--team);
+  font-size: 1.5em;
+  line-height: 1.05;
+  color: color-mix(in srgb, var(--team) 70%, #fff);
+  margin-bottom: 0.25em;
 }
 .roster ul {
   list-style: none;
-  margin: 6px 0 0;
+  margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+.seat {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  min-height: 1.8em;
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  background: rgba(239, 232, 216, 0.07);
+}
+.seat .icon {
+  width: 1.05em;
+  height: 1.05em;
+  color: var(--team);
+}
+.seat .who {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.seat .role {
+  margin-left: auto;
+  color: var(--fg-dim);
+  font-size: 0.72em;
+}
+.seat.open {
+  background: none;
+  outline: 1px dashed rgba(239, 232, 216, 0.22);
+  outline-offset: -1px;
+}
+.seat.open .who,
+.seat.open .icon {
+  color: rgba(239, 232, 216, 0.38);
+  font-weight: 500;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .seat.fresh {
+    animation: seat-in 420ms var(--ease-out);
+  }
+}
+@keyframes seat-in {
+  from {
+    transform: translateX(-0.6em);
+    background: color-mix(in srgb, var(--team) 55%, transparent);
+  }
+}
+.tag-mini {
+  flex: none;
+  font-style: normal;
+  font-size: 0.62em;
+  font-weight: 700;
+  padding: 0.05em 0.45em;
+  border-radius: 3px;
+  background: rgba(239, 232, 216, 0.14);
+  color: var(--fg-dim);
+}
+.tag-mini.ok {
+  background: var(--ok);
+  color: #04210f;
+}
+.tag-mini.warn {
+  background: rgba(255, 90, 70, 0.25);
+  color: #ffb3a8;
+}
+.roster .kick {
+  flex: none;
+  width: 1.3em;
+  height: 1.3em;
+  line-height: 1;
+  border-radius: 50%;
+  font-size: 0.85em;
+  color: var(--fg-dim);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.seat:hover .kick,
+.roster .kick:focus-visible {
+  opacity: 1;
+}
+.roster .kick:hover {
+  background: var(--danger);
+  color: #fff;
+}
+.roster-empty {
+  grid-column: 1 / -1;
+  padding: 1.4em 0;
+  color: var(--fg-dim);
+}
+.roster-empty .display {
+  margin: 0 0 0.2em;
+  font-size: 1.7em;
+  color: var(--fg);
+}
+.roster-empty p {
+  margin: 0;
+}
+.waiting {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 0.85em;
+}
+.lobby-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2vh;
 }
 .lobby-panel .start {
-  font-size: 1.3em;
+  margin: 0;
+  font-size: 1em;
+  color: var(--fg);
 }
-.lobby-panel .keys {
+.keys {
+  margin: 0;
   color: var(--fg-dim);
-  font-size: 0.75em;
+  font-size: 0.66em;
+  line-height: 2;
 }
-.top-bar {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  padding: 6px 18px;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 0 0 12px 12px;
-  z-index: 2;
+.keys kbd {
+  margin: 0 0.15em 0 0.6em;
 }
-.top-bar[hidden] {
-  display: none;
+.keys kbd + kbd {
+  margin-left: 0.1em;
 }
-.top-bar .timer {
-  font-weight: 800;
-  font-size: 1.4em;
+.keys kbd:first-child {
+  margin-left: 0;
 }
-.top-bar .score {
-  color: var(--team);
-  font-weight: 700;
-}
-.top-bar .paused {
-  color: var(--danger);
-  font-weight: 800;
-}
-.cells .cell {
-  position: absolute;
-  box-sizing: border-box;
-  border: 6px solid var(--team);
-}
-.cells .cell.focus {
-  box-shadow: inset 0 0 0 3px #fff;
-}
-.cells .tl,
-.cells .tr {
-  position: absolute;
-  top: 3em; /* below the shared top bar */
-  padding: 4px 10px;
-  background: rgba(0, 0, 0, 0.45);
-  border-radius: 6px;
-}
-.cells .tl {
-  left: 8px;
-}
-.cells .tl b {
-  color: var(--team);
-}
-.cells .tr {
-  right: 8px;
-}
-.cells .crosshair {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 28px;
-  height: 28px;
-  margin: -14px 0 0 -14px;
-  border: 3px solid var(--team);
-  border-radius: 50%;
-}
-.centre {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  text-shadow: 0 2px 8px #000;
-}
-.centre:empty {
-  display: none;
-}
-.centre .big {
-  font: 900 clamp(80px, 14vw, 240px) var(--font);
-  color: var(--accent);
-}
-.centre .results {
-  padding: 24px 40px;
-  background: rgba(5, 16, 26, 0.9);
-  border-radius: 16px;
-}
-.centre .results li {
-  color: var(--team);
-  font-size: 1.3em;
-}
-
-/* ---- B7: per-viewport HUD, kill feed, minimap. B8: host buttons. ---- */
 .host-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin: 10px 0;
+  align-items: center;
+  gap: 0.7em;
 }
-.host-buttons button,
-.roster .kick {
-  pointer-events: auto;
-  cursor: pointer;
-  font: 700 0.9em var(--font);
-  color: #fff;
-  background: rgba(255, 255, 255, 0.12);
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-radius: 8px;
-  padding: 8px 16px;
+.host-buttons .plate-btn {
+  font-size: 1.1em;
+  padding: 0.45em 1.5em 0.5em;
 }
-.host-buttons button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #111;
+.host-buttons .ghost-btn {
+  padding: 0.45em 1em;
 }
-.host-buttons button:disabled {
-  opacity: 0.4;
-  cursor: default;
+
+/* ================================================================ match: shared chrome */
+
+.top-bar {
+  position: absolute;
+  top: 0.5em;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6em;
+  z-index: 3;
 }
-.roster .kick {
-  padding: 0 6px;
-  margin-left: 4px;
-  font-size: 0.7em;
-  border-width: 1px;
-  opacity: 0.6;
+.top-bar .scores {
+  display: flex;
+  gap: 0.35em;
+  padding-top: 0.25em;
 }
-.roster .kick:hover {
-  opacity: 1;
-  border-color: var(--danger);
+.top-bar .scores:first-child {
+  justify-content: flex-end;
 }
-.top-bar .sd {
-  color: var(--danger);
-  font-weight: 900;
+.top-bar .score {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  height: 1.7em;
+  padding: 0 0.55em 0 0.3em;
+  border-radius: 4px;
+  background: rgba(6, 22, 23, 0.78);
+  box-shadow: inset 0 -0.18em 0 var(--team);
 }
-.top-bar .timer.late {
-  color: var(--danger);
+.top-bar .score .palina {
+  width: 0.5em;
+  height: 1.15em;
+  border-radius: 2px;
+  background: repeating-linear-gradient(-35deg, var(--team) 0 0.3em, var(--pietra) 0.3em 0.6em);
+}
+.top-bar .score b {
+  font-size: 1.15em;
+  font-weight: 800;
+  min-width: 0.8em;
+  text-align: center;
+}
+.top-bar .score.lead {
+  box-shadow:
+    inset 0 -0.18em 0 var(--team),
+    0 0 0 2px var(--pietra);
 }
 .top-bar .score.out {
-  opacity: 0.35;
+  opacity: 0.3;
+}
+.top-bar .clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2em;
+}
+.top-bar .timer {
+  padding: 0.12em 0.6em 0.08em;
+  border-radius: 3px;
+  font-size: 1.55em;
+  font-weight: 800;
+  line-height: 1.05;
+  box-shadow:
+    inset 0 0 0 0.12em var(--pietra),
+    inset 0 0 0 0.2em var(--ink),
+    0 0.3em 0.8em rgba(0, 0, 0, 0.35);
+}
+.top-bar .timer.late {
+  color: #b3170a;
+}
+.top-bar .tag {
+  padding: 0.05em 0.6em;
+  border-radius: 3px;
+  background: rgba(6, 22, 23, 0.82);
+  font-size: 0.7em;
+  font-weight: 700;
+}
+.top-bar .tag.sd {
+  background: var(--danger);
+  color: #fff;
+}
+.top-bar .tag.paused {
+  background: var(--pietra);
+  color: var(--ink);
+}
+.top-bar[hidden],
+.kill-feed[hidden],
+.minimap-frame[hidden] {
+  display: none;
 }
 .kill-feed {
   position: absolute;
-  /* Below the viewport labels (.tl / .tr at 3em, about 1.6em tall): at the centre seam of
-     2, 4 and 6 teams the feed would otherwise cover the right cell's team name. In this
-     element's own 0.8em font, 6.4em is 5.1em of the HUD font. */
-  top: 6.4em;
+  /* Below the viewport labels (.tl / .tr: 3.1em down, about 2.9em tall with the crew line):
+     at the centre seam of 2, 4 and 6 teams the feed would otherwise cover the right cell's
+     team name. In this element's own 0.78em font, 8.2em is 6.4em of the HUD font. */
+  top: 8.2em;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  font-size: 0.8em;
+  gap: 0.25em;
+  font-size: 0.78em;
   z-index: 2;
 }
-.kill-feed > div {
-  padding: 2px 10px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 6px;
+.feed-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.12em 0.7em;
+  border-radius: 3px;
+  background: rgba(6, 22, 23, 0.78);
+  white-space: nowrap;
 }
-.kill-feed[hidden],
-.minimap[hidden] {
-  display: none;
+.feed-row b {
+  font-weight: 800;
+  color: color-mix(in srgb, var(--team) 80%, #fff);
+}
+.feed-row .cause {
+  display: inline-flex;
+  color: var(--pietra);
+}
+.feed-row .cause .icon {
+  width: 1.15em;
+  height: 1.15em;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .feed-row:first-child:last-child,
+  .feed-row:last-child {
+    animation: feed-in 300ms var(--ease-out);
+  }
+}
+@keyframes feed-in {
+  from {
+    transform: scale(1.15);
+    background: rgba(239, 232, 216, 0.5);
+  }
+}
+.minimap-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 .minimap {
   position: absolute;
-  border: 3px solid rgba(255, 255, 255, 0.7);
-  border-radius: 6px;
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 3px var(--pietra),
+    0 0 0 5px var(--ink),
+    0 0.6em 1.4em rgba(0, 0, 0, 0.45);
   z-index: 2;
 }
+
+/* ================================================================ match: per viewport */
+
+.cells .cell {
+  position: absolute;
+  box-sizing: border-box;
+  border: 4px solid var(--team);
+}
+.cells .cell.focus {
+  box-shadow: inset 0 0 0 3px var(--pietra);
+}
+.cells .tl,
+.cells .tr,
 .cells .bl,
 .cells .br,
 .cells .bc {
   position: absolute;
-  bottom: 10px;
-  padding: 4px 10px;
-  background: rgba(0, 0, 0, 0.45);
-  border-radius: 6px;
+  background: rgba(6, 22, 23, 0.72);
+  border-radius: 4px;
+}
+.cells .tl {
+  top: 3.1em; /* below the shared top bar */
+  left: 0.5em;
+  display: flex;
+  gap: 0.45em;
+  padding: 0.3em 0.7em 0.35em 0.35em;
+  max-width: 45%;
+}
+.cells .tl > .palina {
+  flex: none;
+  width: 0.42em;
+  border-radius: 2px;
+  background: repeating-linear-gradient(-35deg, var(--team) 0 0.3em, var(--pietra) 0.3em 0.6em);
+}
+.cells .team-name {
+  display: block;
+  font-size: 1.1em;
+  font-weight: 800;
+  line-height: 1.1;
+  color: color-mix(in srgb, var(--team) 75%, #fff);
+}
+.cells .crew {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.7em;
+  font-size: 0.72em;
+  color: var(--fg-dim);
+}
+.cells .crew span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  white-space: nowrap;
+}
+.cells .crew .icon {
+  color: var(--fg);
+}
+.cells .crew .lost {
+  font-style: normal;
+  padding: 0 0.3em;
+  border-radius: 2px;
+  background: var(--danger);
+  color: #fff;
+}
+.cells .tr {
+  top: 3.1em;
+  right: 0.5em;
+  display: flex;
+  gap: 0.8em;
+  padding: 0.25em 0.7em;
+}
+.cells .stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25em;
+  font-size: 0.72em;
+  color: var(--fg-dim);
+}
+.cells .stat b {
+  font-size: 1.75em;
+  font-weight: 800;
+  color: var(--fg);
 }
 .cells .bl {
-  left: 8px;
-}
-.cells .bl .ammo {
-  font-size: 1.4em;
-  margin-left: 6px;
-}
-.cells .br {
-  right: 8px;
+  bottom: 0.5em;
+  left: 0.5em;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5em;
+  padding: 0.3em 0.8em 0.3em 0.4em;
+}
+.cells .weapon-icon {
+  display: grid;
+  place-items: center;
+  width: 2em;
+  height: 2em;
+  border-radius: 3px;
+  background: var(--pietra);
+  color: var(--ink);
+}
+.cells .weapon-icon .icon {
+  width: 1.45em;
+  height: 1.45em;
+}
+.cells .weapon-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+.cells .weapon {
+  font-weight: 800;
+}
+.pips {
+  display: flex;
+  gap: 0.18em;
+  margin-top: 0.2em;
+}
+.pips i {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--pietra);
+}
+.ammo-inf,
+.ammo-num {
+  font-size: 1.1em;
+  font-weight: 800;
+  color: var(--fg-dim);
+}
+.cells .br {
+  bottom: 0.5em;
+  right: 0.5em;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.3em 0.5em;
+}
+.cells .powers {
+  display: flex;
+  gap: 0.3em;
 }
 .cells .power {
-  padding: 2px 8px;
-  border: 2px solid #3a8fff;
-  border-radius: 6px;
-  font-size: 0.85em;
+  display: grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  border-radius: 3px;
+  background: var(--pietra);
+  color: var(--ink);
+}
+.cells .power .icon {
+  width: 1.3em;
+  height: 1.3em;
 }
 .cells .power.empty {
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.35);
+  background: none;
+  outline: 2px dashed rgba(239, 232, 216, 0.3);
+  outline-offset: -2px;
 }
 .cells .water {
-  width: 5em;
-  height: 0.7em;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  color: var(--acqua);
+}
+.cells .water .bar {
+  width: 4.5em;
+  height: 0.55em;
+  border-radius: 999px;
+  background: rgba(239, 232, 216, 0.16);
   overflow: hidden;
 }
-.cells .water i {
+.cells .water .bar i {
   display: block;
   height: 100%;
-  background: #3a8fff;
+  background: var(--acqua);
+  border-radius: 999px;
+}
+.cells .water.high .bar i {
+  background: #ffb347;
+}
+.cells .water.high {
+  color: #ffb347;
 }
 .cells .bc {
+  bottom: 0.5em;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.5em;
+  padding: 0.25em 0.5em;
+  background: none;
 }
 .cells .bow {
-  font-size: 1.2em;
+  display: grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: 50%;
+  background: rgba(6, 22, 23, 0.72);
   color: var(--team);
-  line-height: 1;
 }
-.cells .protect {
-  color: #9fe7ff;
-  font-weight: 700;
+.cells .bow svg {
+  width: 1.05em;
+  height: 1.05em;
 }
-.cells .shield {
-  color: #6fb6ff;
-  font-weight: 700;
-}
-.cells .boost {
-  color: var(--accent);
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.1em 0.6em;
+  border-radius: 999px;
+  font-size: 0.8em;
   font-weight: 800;
+  white-space: nowrap;
+}
+.pill.protect {
+  background: rgba(239, 232, 216, 0.92);
+  color: var(--ink);
+}
+.pill.shield {
+  background: var(--acqua);
+  color: #062a2e;
+}
+.pill.boost {
+  background: var(--accent);
+  color: #2a1a00;
+}
+
+/* Crosshair in the team colour; red diamond on an enemy, red rings on a lock, white X on a hit. */
+.cells .crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 3px solid var(--team);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.cells .crosshair i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: var(--team);
 }
 .cells .crosshair.enemy {
   border-color: var(--danger);
-  border-radius: 2px;
-  transform: rotate(45deg) scale(0.8);
+  border-radius: 3px;
+  transform: rotate(45deg) scale(0.85);
+}
+.cells .crosshair.enemy i,
+.cells .crosshair.lock i {
+  background: var(--danger);
 }
 .cells .crosshair.hit {
   border: none;
+  box-shadow: none;
+}
+.cells .crosshair.hit i {
+  display: none;
 }
 .cells .crosshair.hit::before,
 .cells .crosshair.hit::after {
@@ -339,9 +756,10 @@
   left: 50%;
   top: -4px;
   width: 4px;
-  height: 36px;
+  height: 38px;
   margin-left: -2px;
   background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
   transform: rotate(45deg);
 }
 .cells .crosshair.hit::after {
@@ -349,7 +767,9 @@
 }
 .cells .crosshair.lock {
   border-color: var(--danger);
-  box-shadow: 0 0 0 6px rgba(224, 74, 58, 0.45);
+  box-shadow:
+    0 0 0 5px rgba(6, 22, 23, 0.4),
+    0 0 0 8px var(--danger);
 }
 .cells .flash {
   position: absolute;
@@ -357,8 +777,9 @@
   pointer-events: none;
 }
 .cells .shield-flash {
-  background: rgba(70, 150, 255, 0.35);
+  background: radial-gradient(closest-side, transparent 55%, rgba(143, 216, 224, 0.55));
 }
+/* Sunk: the cell goes under water, the countdown says when the crew is back. */
 .cells .sunk {
   position: absolute;
   inset: 0;
@@ -366,18 +787,231 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.35);
-  text-shadow: 0 2px 8px #000;
+  gap: 0.2em;
+  background: linear-gradient(180deg, rgba(6, 40, 52, 0.25), rgba(6, 40, 52, 0.7));
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
 }
 .cells .sunk-title {
-  font-size: 2em;
-  font-weight: 900;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 3.2em;
+  line-height: 1;
+  color: var(--acqua);
+}
+.cells .sunk-by {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+.cells .sunk-by b {
+  font-weight: 800;
+  color: color-mix(in srgb, var(--team) 75%, #fff);
 }
 .cells .sunk-count {
-  font-size: 3em;
-  font-weight: 900;
-  color: var(--accent);
-}
-.centre .results .host-buttons {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  margin-top: 0.3em;
+  width: 3.2em;
+  height: 3.2em;
   justify-content: center;
+  border-radius: 50%;
+  border: 3px solid var(--pietra);
+  background: rgba(6, 22, 23, 0.6);
+}
+.cells .sunk-count b {
+  font-size: 1.5em;
+  line-height: 1;
+}
+.cells .sunk-count span {
+  font-size: 0.5em;
+  color: var(--fg-dim);
+}
+.cells .sunk-note {
+  margin-top: 0.3em;
+  font-size: 0.75em;
+  color: var(--fg-dim);
+}
+.cells .sunk.out .sunk-title {
+  color: var(--fg-dim);
+}
+
+/* ================================================================ centre: countdown and results */
+
+.centre {
+  position: absolute;
+  inset: 0;
+  z-index: 4; /* over the minimap, which sits where the cells meet */
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.centre:empty {
+  display: none;
+}
+.countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.countdown .big {
+  font-size: clamp(110px, 16vw, 300px);
+  line-height: 0.9;
+  color: var(--pietra);
+  text-shadow:
+    0 0.04em 0 rgba(0, 0, 0, 0.35),
+    0 0.1em 0.4em rgba(0, 0, 0, 0.45);
+}
+.countdown p {
+  margin: 0.3em 0 0;
+  padding: 0.3em 1em;
+  border-radius: 4px;
+  background: rgba(6, 22, 23, 0.8);
+  font-size: 1em;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .countdown .big {
+    animation: count-pop 600ms var(--ease-out);
+  }
+}
+@keyframes count-pop {
+  from {
+    transform: scale(1.35);
+    opacity: 0.2;
+  }
+}
+/* Results: the regatta's prize pennants, hung from one rod, the winner's the longest. */
+.centre .results {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+  width: min(92vw, 1500px);
+  padding: 1.4em 2em 1.2em;
+  border-radius: 6px;
+  background: rgba(6, 22, 23, 0.92);
+  box-shadow: 0 1em 3em rgba(0, 0, 0, 0.5);
+}
+.results h2 {
+  font-size: 2.6em;
+  line-height: 1;
+  color: var(--pietra);
+}
+.results-note {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 0.85em;
+}
+.results .rod {
+  width: min(100%, 26em);
+  height: 0.35em;
+  margin-top: 0.6em;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #e9c46a, #8a6a1e);
+}
+.pennants {
+  list-style: none;
+  margin: -0.2em 0 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  gap: 0.9em;
+  transform-origin: top;
+}
+.pennant {
+  position: relative;
+  width: 5.2em;
+  height: 9em;
+  padding: 0.6em 0.3em 2.6em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--team) 85%, #fff) 0%, var(--team) 30%, color-mix(in srgb, var(--team) 70%, #000) 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%);
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
+}
+.pennant.first {
+  width: 6.4em;
+  height: 11.5em;
+}
+.pennant:not(.first) {
+  height: calc(9em - var(--i) * 0.6em);
+}
+.pennant .rank {
+  font-size: 2.2em;
+  line-height: 1;
+}
+.pennant.first .rank {
+  font-size: 3em;
+}
+.pn-name {
+  font-weight: 800;
+  font-size: 1em;
+}
+.pn-stat {
+  font-size: 0.72em;
+  font-weight: 600;
+}
+.pn-stat b {
+  font-size: 1.25em;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pennant {
+    animation:
+      pennant-drop 700ms var(--ease-out) calc(var(--i) * 90ms) both,
+      pennant-sway 4s ease-in-out calc(700ms + var(--i) * 90ms) infinite;
+  }
+}
+@keyframes pennant-drop {
+  from {
+    transform: scaleY(0.2);
+    opacity: 0;
+  }
+}
+@keyframes pennant-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(1.6deg);
+  }
+}
+.awards {
+  list-style: none;
+  margin: 0.6em 0 0;
+  padding: 0;
+  display: flex;
+  gap: 1.6em;
+}
+.awards li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+}
+.awards .icon {
+  align-self: center;
+  color: var(--pietra);
+}
+.awards span {
+  color: var(--fg-dim);
+}
+.awards b {
+  font-weight: 800;
+}
+.awards em {
+  font-style: normal;
+  color: var(--fg-dim);
+  font-size: 0.85em;
+}
+.results .host-buttons {
+  justify-content: center;
+  margin-top: 0.8em;
+}
+.results .keys {
+  margin-top: 0.2em;
 }

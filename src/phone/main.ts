@@ -30,9 +30,20 @@ import { saveInvertAim, loadInvertAim, type MotionHealth } from './sensors.ts';
 import { PhoneScreens, SCREENS_HTML } from './screens.ts';
 import { clock, describeErr, linkWarning, nextRole, nextTeam, phoneView, type ErrView, type ViewState } from './view.ts';
 import { haptic } from './wake.ts';
+import { ferroMark, roleIcon } from '../ui/icons.ts';
 
-const ROLE_LABEL: Record<Role, string> = { pilot: 'PILOT', gunner: 'GUNNER', engineer: 'ENGINEER' };
-const PHASE_LABEL: Record<Phase, string> = { lobby: 'LOBBY', countdown: 'STARTS IN', battle: 'BATTLE', suddendeath: 'SUDDEN DEATH', results: 'RESULTS' };
+const ROLE_LABEL: Record<Role, string> = { pilot: 'Pilot', gunner: 'Gunner', engineer: 'Engineer' };
+const PHASE_LABEL: Record<Phase, string> = { lobby: 'Lobby', countdown: 'Starts in', battle: 'Battle', suddendeath: 'Sudden death', results: 'Results' };
+/** What each role does, in one line under the role name in the lobby. */
+const ROLE_JOB: Record<Role, string> = {
+  pilot: 'You steer. Hold the phone sideways like a wheel and tilt it; GAS is on the right, BRAKE on the left.',
+  gunner: 'You shoot. Turn with the phone to aim the cannon and tap FIRE. RECENTER puts the aim back on the bow.',
+  engineer: 'You run the powers your crew picks up, and shake the phone to bail water out of the hull.',
+};
+
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
 const NO_MOTION = 'No motion sensors. Open the https link from the QR and allow motion access (or add ?sim=1 on a desktop).';
 const SENSORS_STOPPED = 'The motion sensors stopped. Tap to resume controls.';
 
@@ -71,14 +82,18 @@ async function probeRoom(code: string): Promise<{ exists: boolean; full: boolean
 /** Fallback join: type the code (the QR normally opens /play?room=CODE directly). */
 function renderJoin(root: HTMLElement, badCode: string | null): void {
   root.innerHTML = `
-    <main class="phone-page">
-      <h1>Join a room</h1>
-      <p class="muted">Scan the QR on the big screen with your camera, or type its 4-letter code.</p>
-      <input id="code" class="code-input" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="DAMU" enterkeyhint="go" />
-      <button id="join" class="big-button primary" type="button">JOIN</button>
-      <button id="scan" class="big-button" type="button">SCAN QR<small>Uses the camera in this page</small></button>
+    <main class="phone-page join-page">
+      ${ferroMark()}
+      <h1 class="display">Join a game</h1>
+      <p class="muted">Type the 4 letters on the big screen, or point your camera at its QR code.</p>
+      <label class="code-field sign">
+        <span>Room code</span>
+        <input id="code" class="code-input" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="····" enterkeyhint="go" />
+      </label>
+      <button id="join" class="plate-btn join-btn" type="button">Join</button>
+      <button id="scan" class="ghost-btn" type="button">Scan the QR here<small>Uses the camera inside this page</small></button>
       <video id="scanner" playsinline muted hidden></video>
-      <p id="msg" class="muted join-msg" role="alert"></p>
+      <p id="msg" class="join-msg" role="alert"></p>
     </main>`;
   const input = root.querySelector<HTMLInputElement>('#code');
   const msg = root.querySelector<HTMLElement>('#msg');
@@ -132,43 +147,52 @@ function runRoom(root: HTMLElement, room: string): void {
   root.innerHTML = `
     <div class="phone-root" id="phone">
       <header class="phone-bar">
-        <span id="me-name"></span><span id="me-role"></span><span id="status"></span>
+        <span id="me-name" class="pb-name"></span><span id="me-role" class="pb-seat"></span><span id="status" class="pb-status"></span>
       </header>
       <section id="pads-mount" class="pads-mount" hidden></section>
       ${SCREENS_HTML}
       <section id="lobby" class="phone-lobby">
-        <div class="lobby-seat"><span id="seat-team"></span><b id="seat-role"></b></div>
-        <input id="name" class="name-input" maxlength="16" aria-label="Your name" />
-        <div class="row">
-          <button id="swap-role" class="chip" type="button">Swap role</button>
-          <button id="move-team" class="chip" type="button">Move team</button>
-          <button id="ready" class="chip" type="button">Ready</button>
+        <div class="lobby-card">
+          <div class="lobby-seat">
+            <div class="seat-icon" id="seat-icon"></div>
+            <div class="seat-text"><span id="seat-team" class="display"></span><b id="seat-role"></b></div>
+          </div>
+          <p class="seat-job" id="seat-job"></p>
+          <ul class="crew-list" id="crew"></ul>
         </div>
-        <button id="enable" class="big-button primary" type="button">ENABLE CONTROLS<small>One tap: motion sensors and screen wake</small></button>
-        <div class="row" id="after-enable" hidden>
-          <button id="try" class="chip" type="button">Try controls</button>
-          <button id="invert" class="chip" type="button">Invert aim: off</button>
+        <div class="lobby-controls">
+          <label class="name-field"><span>Your name</span><input id="name" class="name-input" maxlength="16" autocomplete="nickname" enterkeyhint="done" /></label>
+          <div class="row">
+            <button id="swap-role" class="chip" type="button">Swap role</button>
+            <button id="move-team" class="chip" type="button">Move team</button>
+            <button id="ready" class="chip" type="button" aria-pressed="false">Ready</button>
+          </div>
+          <button id="enable" class="plate-btn enable-btn" type="button">Enable controls<small>Turns on the motion sensors and keeps the screen awake</small></button>
+          <div class="row" id="after-enable" hidden>
+            <button id="try" class="chip" type="button">Try the controls</button>
+            <button id="invert" class="chip" type="button">Invert aim: off</button>
+          </div>
+          <p id="hint" class="hint"></p>
         </div>
-        <p id="hint" class="muted"></p>
       </section>
       <section id="resume" class="phone-overlay resume" hidden>
-        <div class="big">MATCH ON</div>
-        <div id="resume-seat"></div>
-        <button id="resume-btn" class="big-button primary" type="button">TAP TO RESUME CONTROLS</button>
+        <div class="big">Match in progress</div>
+        <div id="resume-seat" class="resume-seat"></div>
+        <button id="resume-btn" class="plate-btn enable-btn" type="button">Tap to resume controls</button>
       </section>
       <section id="spectate" class="phone-overlay spectate" hidden>
-        <div class="big">YOU'RE UP NEXT</div><div>The match is full or already running. You join at the next lobby.</div>
+        <div class="big">You're up next</div><div>Every seat is taken or a match is running. You get a seat in the next lobby.</div>
       </section>
       <section id="blocked" class="phone-overlay blocked" hidden>
-        <div class="big" id="blocked-code-label"></div>
+        <div class="code-plate sign" id="blocked-code-label"></div>
         <div id="blocked-text" class="blocked-text"></div>
-        <button id="blocked-action" class="big-button primary" type="button"></button>
-        <a id="blocked-other" class="chip" href="/play">Enter another code</a>
+        <button id="blocked-action" class="plate-btn" type="button"></button>
+        <a id="blocked-other" class="ghost-btn" href="/play">Enter another code</a>
       </section>
-      <button id="back-lobby" class="chip back-lobby" type="button" hidden>Back to lobby</button>
+      <button id="back-lobby" class="chip back-lobby" type="button" hidden>Back to the lobby</button>
       <div id="hud" class="phone-hud" hidden></div>
       <div id="alert" class="phone-alert" hidden></div>
-      <div id="rotate" class="rotate-overlay"><div>Turn your phone sideways<small>Hold it like a wheel, landscape</small></div></div>
+      <div id="rotate" class="rotate-overlay"><div><i class="rotate-phone"></i>Turn your phone sideways<small>Hold it like a wheel, in landscape</small></div></div>
       <div id="flash" class="phone-flash"></div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => {
@@ -218,6 +242,9 @@ function runRoom(root: HTMLElement, room: string): void {
   let sceneOnline = false;
   let lastHudAt = 0;
   let view: ViewState = computeView();
+  let lastSeatKey = '';
+  let lastHudHtml = '';
+  let lastCrewHtml = '';
   nameInput.value = getPlayerName();
   invertBtn.textContent = `Invert aim: ${loadInvertAim() ? 'on' : 'off'}`;
 
@@ -361,11 +388,18 @@ function runRoom(root: HTMLElement, room: string): void {
     phoneEl.dataset['role'] = me.role;
     phoneEl.dataset['phase'] = phase;
     $('#me-name').textContent = nameInput.value;
-    const seat = me.team >= 0 ? `${teamName()} · ${ROLE_LABEL[me.role]}` : 'Waiting';
-    $('#me-role').textContent = seat;
+    const seat = me.team >= 0 ? `${teamName()} ${ROLE_LABEL[me.role].toLowerCase()}` : 'Waiting for a seat';
+    const seatKey = `${me.team}|${me.role}|${teamName()}`;
+    if (seatKey !== lastSeatKey) {
+      lastSeatKey = seatKey;
+      $('#me-role').innerHTML = me.team >= 0 ? `<i class="swatch"></i>${esc(teamName())} ${roleIcon(me.role)}` : 'Waiting for a seat';
+      $('#seat-icon').innerHTML = me.team >= 0 ? roleIcon(me.role) : '';
+    }
     // Role name in large type with the team name over it (SPEC section 3, "check at a glance").
-    seatTeam.textContent = me.team >= 0 ? teamName().toUpperCase() : 'NO TEAM YET';
-    seatRole.textContent = me.team >= 0 ? ROLE_LABEL[me.role] : 'WAITING';
+    seatTeam.textContent = me.team >= 0 ? teamName() : 'No crew yet';
+    seatRole.textContent = me.team >= 0 ? ROLE_LABEL[me.role] : 'Waiting';
+    $('#seat-job').textContent = me.team >= 0 ? ROLE_JOB[me.role] : 'The big screen puts you in a crew as soon as it sees you.';
+    renderCrew();
     $('#resume-seat').textContent = me.team >= 0 ? seat : '';
     lobbyEl.hidden = !view.lobby;
     resumeEl.hidden = !view.resume;
@@ -376,14 +410,16 @@ function runRoom(root: HTMLElement, room: string): void {
     blockedEl.hidden = blocked === null;
     if (blocked) {
       statusEl.textContent = ''; // the panel says why; "offline (io client disconnect)" would only confuse
-      $('#blocked-code-label').textContent = room;
+      $('#blocked-code-label').innerHTML = `<span>Room code</span><b>${esc(room)}</b>`;
       $('#blocked-text').textContent = blocked.text;
       blockedAction.hidden = blocked.action === null;
-      blockedAction.textContent = blocked.action === 'takeover' ? 'USE THIS PHONE' : blocked.action === 'reload' ? 'RELOAD' : 'TRY AGAIN';
+      blockedAction.textContent = blocked.action === 'takeover' ? 'Use this phone' : blocked.action === 'reload' ? 'Reload' : 'Try again';
       $('#blocked-other').hidden = !blocked.otherCode;
     }
     screens.setPlaying(view.playing, me.role);
     $('#ready').classList.toggle('on', ready);
+    $('#ready').setAttribute('aria-pressed', String(ready));
+    $('#ready').textContent = ready ? 'Ready ✓' : 'Ready';
     enableBtn.hidden = controller !== null;
     enableBtn.disabled = enabling;
     $('#after-enable').hidden = controller === null;
@@ -395,10 +431,33 @@ function runRoom(root: HTMLElement, room: string): void {
   }
 
   function renderHud(h: Hud): void {
-    const parts = [`${PHASE_LABEL[h.phase]} ${clock(h.timeLeft)}`, `${h.teamName} K ${h.kills} · D ${h.deaths}`];
-    if (h.protectedFor > 0) parts.push(`protected ${Math.ceil(h.protectedFor)}`);
-    const text = parts.join('   ');
-    if (hudEl.textContent !== text) hudEl.textContent = text;
+    const prot = h.protectedFor > 0 ? `<span class="hud-prot">Protected ${Math.ceil(h.protectedFor)}</span>` : '';
+    const html = `<span class="hud-phase">${PHASE_LABEL[h.phase]} <b>${clock(h.timeLeft)}</b></span>${prot}<span class="hud-score"><i class="swatch"></i>${esc(h.teamName)} <b>${h.kills}</b> sunk <b>${h.deaths}</b> lost</span>`;
+    if (html !== lastHudHtml) {
+      lastHudHtml = html;
+      hudEl.innerHTML = html;
+    }
+  }
+
+  /** The lobby's crew list: who else is in this boat, and which seats are still open. */
+  function renderCrew(): void {
+    const crewEl = $('#crew');
+    const team = lobby?.teams.find((t) => t.index === me.team);
+    if (!team) {
+      if (lastCrewHtml !== '') crewEl.innerHTML = lastCrewHtml = '';
+      return;
+    }
+    const size = lobby?.teamSize ?? 3;
+    const roles: Role[] = ['pilot', 'gunner', 'engineer'];
+    const rows = roles.slice(0, Math.max(size, team.members.length)).map((role, i) => {
+      const m = team.members[i];
+      if (!m) return `<li class="open">${roleIcon(role)}<span>Open seat</span><em>${ROLE_LABEL[role]}</em></li>`;
+      const you = m.pid === me.pid ? ' <small>you</small>' : '';
+      const ok = m.ready ? '<em class="ok">Ready</em>' : `<em>${ROLE_LABEL[m.role]}</em>`;
+      return `<li${m.pid === me.pid ? ' class="me"' : ''}>${roleIcon(m.role)}<span>${esc(m.name)}${you}</span>${ok}</li>`;
+    });
+    const html = rows.join('');
+    if (html !== lastCrewHtml) crewEl.innerHTML = lastCrewHtml = html;
   }
 
   // Sensor-driven parts of the role screen, every animation frame.

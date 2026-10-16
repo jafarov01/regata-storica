@@ -130,7 +130,8 @@ export function buildPadLayout(role: 'pilot' | 'gunner' | 'engineer', gunnerHasP
     const el = document.createElement('div');
     el.className = `zone zone-${name} ${extraClass}`.trim();
     el.dataset['zone'] = name;
-    el.textContent = label;
+    // Children never take the pointer (pads.css), so the zone itself stays the touch target.
+    el.innerHTML = `${ZONE_ICON[name] ?? ''}<span class="zone-label">${label}</span>`;
     return el;
   };
   switch (role) {
@@ -149,3 +150,11 @@ export function buildPadLayout(role: 'pilot' | 'gunner' | 'engineer', gunnerHasP
   }
   return root;
 }
+
+/** Line icons over the pad labels (24-unit grid, currentColor). */
+const ZONE_ICON: Partial<Record<PadZone, string>> = {
+  gas: '<svg class="icon zone-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m5 13 7-7 7 7M5 20l7-7 7 7"/></svg>',
+  brake: '<svg class="icon zone-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>',
+  fire: '<svg class="icon zone-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 1.5v5M12 17.5v5M1.5 12h5M17.5 12h5"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>',
+  recenter: '<svg class="icon zone-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 3.5v4h-4"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>',
+};
